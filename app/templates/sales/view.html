@@ -1,0 +1,304 @@
+{% extends 'base.html' %}
+{% block title %}Order {{ order.order_number }} - SnackFlow{% endblock %}
+
+{% block content %}
+<div class="mb-4 d-flex flex-wrap align-items-center justify-content-between gap-2">
+  <div>
+    <a href="{{ url_for('sales.index') }}" class="btn btn-sm btn-link text-decoration-none p-0 text-muted">&larr; Back to Sales Orders</a>
+    <div class="d-flex align-items-center gap-2 mt-2">
+      <h3 class="fw-bold text-dark mb-0">Sales Order: {{ order.order_number }}</h3>
+      <span class="badge-status badge-{{ order.status|lower }} fs-6">{{ order.status }}</span>
+      {% if stock_review.has_shortage %}
+        <span class="badge bg-danger text-white fs-6">
+          <i class="bi bi-exclamation-octagon-fill me-1"></i>Shortage Detected
+        </span>
+      {% endif %}
+    </div>
+    <p class="text-muted small mb-0">Booked on {{ order.order_date|date_format }} by <b>{{ order.salesman.full_name }}</b></p>
+  </div>
+
+  <div class="d-flex gap-2">
+    <!-- Action buttons based on status & role -->
+    {% if order.status == OrderStatus.APPROVED and current_user.has_role(Role.FACTORY_ADMIN, Role.OWNER) %}
+      <form method="POST" action="{{ url_for('invoices.create_from_order', order_id=order.id) }}">
+        <button type="submit" class="btn btn-primary-custom" data-confirm="Generate official GST Tax Invoice for this approved order?">
+          <i class="bi bi-receipt me-1"></i>Generate GST Invoice
+        </button>
+      </form>
+    {% elif order.status == OrderStatus.INVOICED and current_user.has_role(Role.FACTORY_ADMIN, Role.OWNER) %}
+      <a href="{{ url_for('dispatch.create', order_id=order.id) }}" class="btn btn-success fw-semibold">
+        <i class="bi bi-truck me-1"></i>Proceed to Dispatch
+      </a>
+    {% endif %}
+  </div>
+</div>
+
+<!-- SHORTAGE ALERT BANNER (Benchmark Step 6) -->
+{% if stock_review.has_shortage %}
+<div class="alert alert-danger border-0 shadow-sm mb-4">
+  <div class="d-flex align-items-center gap-2 mb-2">
+    <i class="bi bi-exclamation-triangle-fill fs-4 text-danger"></i>
+    <div>
+      <h5 class="fw-bold text-danger mb-0">INVENTORY SHORTAGE DETECTED! (Benchmark Step 6 Requirement)</h5>
+      <div class="small">The requested quantities exceed available finished goods inventory derived from the stock ledger.</div>
+    </div>
+  </div>
+  <div class="bg-white p-3 rounded border border-danger-subtle mt-2">
+    {% for itm in stock_review.items %}
+      {% if itm.shortage_qty > 0 %}
+      <div class="d-flex flex-wrap justify-content-between align-items-center py-1">
+        <div>
+          <span class="fw-bold text-dark">{{ itm.product_name }}</span>
+          <span class="text-muted small">({{ itm.sku }})</span>
+        </div>
+        <div class="d-flex gap-3 text-center">
+          <div><small class="text-muted d-block">ORDERED</small><span class="fw-bold text-dark">{{ itm.ordered_qty|format_qty }}</span></div>
+          <div><small class="text-muted d-block">AVAILABLE IN STOCK</small><span class="fw-bold text-primary">{{ itm.available_stock|format_qty }}</span></div>
+          <div><small class="text-danger fw-bold d-block">UNFULFILLED SHORTAGE</small><span class="fw-bold text-danger fs-6">{{ itm.shortage_qty|format_qty }}</span></div>
+        </div>
+      </div>
+      {% endif %}
+    {% endfor %}
+  </div>
+  <div class="small text-danger mt-2 fw-medium">
+    <i class="bi bi-info-circle me-1"></i>
+    <b>Factory Admin Handling Options:</b> You can approve partial fulfilment up to currently available stock, or hold order until new production run finishes.
+  </div>
+</div>
+{% endif %}
+
+<div class="row g-4 mb-4">
+  <!-- Customer Details -->
+  <div class="col-lg-6">
+    <div class="card-modern p-3">
+      <h6 class="fw-bold text-dark mb-3"><i class="bi bi-person-badge text-primary me-1.5"></i>Customer & Tax Profile</h6>
+      <div class="d-flex justify-content-between py-1.5 border-bottom small">
+        <span class="text-muted">Customer Name:</span>
+        <span class="fw-semibold text-dark">{{ order.customer.name }}</span>
+      </div>
+      <div class="d-flex justify-content-between py-1.5 border-bottom small">
+        <span class="text-muted">Customer Type:</span>
+        <span class="badge bg-light text-dark border">{{ order.customer.customer_type }}</span>
+      </div>
+      <div class="d-flex justify-content-between py-1.5 border-bottom small">
+        <span class="text-muted">Destination State:</span>
+        <span class="fw-semibold">{{ order.customer.state }} (State Code: {{ order.customer.state_code }})</span>
+      </div>
+      <div class="d-flex justify-content-between py-1.5 border-bottom small">
+        <span class="text-muted">GST Treatment:</span>
+        {% if order.customer.state == 'Tamil Nadu' %}
+          <span class="badge bg-success-subtle text-success">Intra-State Sale (CGST 2.5% + SGST 2.5%)</span>
+        {% else %}
+          <span class="badge bg-warning-subtle text-warning">Inter-State Sale (IGST 5.0%)</span>
+        {% endif %}
+      </div>
+      <div class="d-flex justify-content-between py-1.5 small">
+        <span class="text-muted">GSTIN:</span>
+        <span class="font-monospace fw-medium text-dark">{{ order.customer.gstin or 'Unregistered Consumer' }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Review / Approval Details -->
+  <div class="col-lg-6">
+    <div class="card-modern p-3">
+      <h6 class="fw-bold text-dark mb-3"><i class="bi bi-shield-check text-success me-1.5"></i>Verification & Audit State</h6>
+      <div class="d-flex justify-content-between py-1.5 border-bottom small">
+        <span class="text-muted">Order Status:</span>
+        <span class="badge-status badge-{{ order.status|lower }}">{{ order.status }}</span>
+      </div>
+      <div class="d-flex justify-content-between py-1.5 border-bottom small">
+        <span class="text-muted">Reviewed By:</span>
+        <span class="fw-semibold text-dark">{{ order.reviewed_by.full_name if order.reviewed_by else 'Pending Factory Review' }}</span>
+      </div>
+      <div class="d-flex justify-content-between py-1.5 border-bottom small">
+        <span class="text-muted">Reviewed Timestamp:</span>
+        <span class="text-dark">{{ order.reviewed_at.strftime('%d-%b-%Y %H:%M') if order.reviewed_at else '-' }}</span>
+      </div>
+      <div class="py-2 small">
+        <span class="text-muted d-block mb-1">Reviewer Notes:</span>
+        <span class="fst-italic text-dark">{{ order.review_notes or 'No review notes entered.' }}</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Order Items & Stock Table -->
+<div class="card-modern overflow-hidden mb-4">
+  <div class="p-3 border-bottom d-flex align-items-center justify-content-between bg-light">
+    <h6 class="fw-bold text-dark mb-0"><i class="bi bi-boxes me-1.5 text-primary"></i>Ordered Products & Inventory Stock Audit</h6>
+    <span class="badge bg-light text-muted border">Real-time Ledger Checks</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-modern">
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th>Ordered Qty</th>
+          <th>Available Stock in Warehouse</th>
+          <th>Stock Shortage</th>
+          <th>Approved Qty</th>
+          <th>Unit Price</th>
+          <th>Taxable Turnover</th>
+          <th>GST (5%)</th>
+          <th>Line Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in order.items %}
+        <tr>
+          <td>
+            <div class="fw-semibold text-dark">{{ item.product.name }}</div>
+            <small class="text-muted font-monospace">{{ item.product.sku }} | HSN: {{ item.product.hsn }}</small>
+          </td>
+          <td class="fw-bold fs-6 text-dark">{{ item.ordered_quantity|format_qty(item.product.unit) }}</td>
+          <td class="fw-semibold text-primary">{{ item.available_stock_at_review|format_qty(item.product.unit) }}</td>
+          <td>
+            {% if item.shortage_quantity > 0 %}
+              <span class="badge bg-danger fs-6">{{ item.shortage_quantity|format_qty(item.product.unit) }}</span>
+            {% else %}
+              <span class="badge bg-success-subtle text-success">No Shortage</span>
+            {% endif %}
+          </td>
+          <td class="fw-bold text-success fs-6">
+            {% if order.status != OrderStatus.PENDING %}
+              {{ item.approved_quantity|format_qty(item.product.unit) }}
+            {% else %}
+              <span class="text-muted">Awaiting Approval</span>
+            {% endif %}
+          </td>
+          <td>{{ item.unit_price|currency }}</td>
+          <td class="fw-semibold">{{ item.taxable_amount|currency }}</td>
+          <td>{{ item.tax_amount|currency }}</td>
+          <td class="fw-bold text-dark">{{ item.total_amount|currency }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot class="table-light">
+        <tr>
+          <td colspan="6" class="text-end fw-bold">Order Financial Totals:</td>
+          <td class="fw-bold text-dark">{{ order.total_taxable_amount|currency }}</td>
+          <td class="fw-bold text-info">{{ order.total_tax_amount|currency }}</td>
+          <td class="fw-bold fs-5 text-primary">{{ order.total_amount|currency }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+
+<!-- FACTORY ADMIN APPROVAL / REJECTION WORKFLOW CONTROLS -->
+{% if order.status == OrderStatus.PENDING and current_user.has_role(Role.FACTORY_ADMIN, Role.OWNER) %}
+<div class="card-modern p-4 border-primary">
+  <h5 class="fw-bold text-dark mb-2"><i class="bi bi-shield-check text-primary me-2"></i>Factory Admin Order Decision</h5>
+  <p class="text-muted small mb-3">Enforce inventory rules. Approved quantities cannot exceed current available stock.</p>
+
+  <form method="POST" action="{{ url_for('sales.approve', id=order.id) }}">
+    <div class="row g-3 mb-3">
+      {% for item in order.items %}
+      <div class="col-md-6">
+        <label class="form-label small fw-semibold">
+          Approve Quantity for <b>{{ item.product.name }}</b> 
+          (Ordered: {{ item.ordered_quantity }}, Stock: {{ item.available_stock_at_review }})
+        </label>
+        <div class="input-group">
+          <!-- Default approved qty is min of ordered and available stock -->
+          <input type="number" step="1" min="0" max="{{ item.available_stock_at_review }}" 
+            name="approved_qty_{ item.id }}" class="form-control fw-bold" 
+            value="{% if item.available_stock_at_review < item.ordered_quantity %}{{ item.available_stock_at_review }}{% else %}{{ item.ordered_quantity }}{% endif %}">
+          <span class="input-group-text">{{ item.product.unit }}</span>
+        </div>
+        {% if item.shortage_quantity > 0 %}
+          <small class="text-danger fw-semibold">
+            Shortage of {{ item.shortage_quantity }} packets! Partial fulfillment set to max available ({{ item.available_stock_at_review }} pkts).
+          </small>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label small fw-semibold">Review / Approval Notes</label>
+      <input type="text" name="review_notes" class="form-control" placeholder="e.g. Approved for dispatch / Partial allocation due to stock shortage">
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center">
+      <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#rejectModal">
+        <i class="bi bi-x-circle me-1"></i>Reject Order
+      </button>
+
+      <button type="submit" class="btn btn-primary-custom" data-confirm="Approve this sales order with specified quantities?">
+        <i class="bi bi-check2-circle me-1"></i>Confirm & Approve Order
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- Reject Modal -->
+<div class="modal fade" id="rejectModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('sales.reject', id=order.id) }}">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold text-danger">Reject Order {{ order.order_number }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p class="small text-muted">Are you sure you want to reject this order? This action will be logged in the audit trail.</p>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Reason for Rejection</label>
+            <textarea name="reject_reason" class="form-control" rows="3" placeholder="e.g. Customer credit limit exceeded / Product line temporarily suspended" required></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-sm btn-danger">Confirm Rejection</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Invoices generated for this order -->
+{% if order.invoices %}
+<div class="card-modern p-3 mt-4">
+  <h6 class="fw-bold text-dark mb-3"><i class="bi bi-receipt text-primary me-1.5"></i>Linked GST Tax Invoices</h6>
+  <div class="table-responsive">
+    <table class="table table-sm">
+      <thead>
+        <tr class="text-muted small">
+          <th>Invoice #</th>
+          <th>Invoice Date</th>
+          <th>Taxable</th>
+          <th>CGST</th>
+          <th>SGST</th>
+          <th>IGST</th>
+          <th>Total Amount</th>
+          <th>Status</th>
+          <th>PDF Download</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for inv in order.invoices %}
+        <tr>
+          <td><a href="{{ url_for('invoices.view', id=inv.id) }}" class="fw-bold text-primary">{{ inv.invoice_number }}</a></td>
+          <td>{{ inv.invoice_date|date_format }}</td>
+          <td>{{ inv.taxable_amount|currency }}</td>
+          <td>{{ inv.cgst_amount|currency }}</td>
+          <td>{{ inv.sgst_amount|currency }}</td>
+          <td>{{ inv.igst_amount|currency }}</td>
+          <td class="fw-bold text-dark">{{ inv.total_amount|currency }}</td>
+          <td><span class="badge-status badge-{{ inv.status|lower }}">{{ inv.status }}</span></td>
+          <td>
+            <a href="{{ url_for('invoices.download_pdf', id=inv.id) }}" class="btn btn-sm btn-outline-danger py-0.5 px-2">
+              <i class="bi bi-file-pdf me-1"></i>PDF
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

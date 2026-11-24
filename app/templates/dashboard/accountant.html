@@ -1,0 +1,205 @@
+{% extends 'base.html' %}
+{% block title %}Accountant & Auditor Dashboard - SnackFlow{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 gap-2">
+  <div>
+    <h3 class="fw-bold text-dark mb-1">Financial & Audit Dashboard</h3>
+    <p class="text-muted small mb-0">Read-only oversight of sales revenue, GST collections, receivables ageing, and procurement expenses</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('reports.sales_register', export='csv') }}" class="btn btn-sm btn-outline-success"><i class="bi bi-download me-1"></i>Export Sales CSV</a>
+    <a href="{{ url_for('reports.gst_summary', export='csv') }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-download me-1"></i>Export GST CSV</a>
+    <a href="{{ url_for('reports.receivables_ageing', export='csv') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-download me-1"></i>Export Ageing CSV</a>
+  </div>
+</div>
+
+<!-- Financial Highlights -->
+<div class="row g-3 mb-4">
+  <div class="col-xl-3 col-md-6">
+    <div class="card-stat">
+      <div class="stat-label">Billed Sales (Gross)</div>
+      <div class="stat-value text-primary">{{ total_sales|currency }}</div>
+      <div class="stat-subtext">Taxable + Total GST</div>
+      <div class="stat-icon-bg bg-primary-subtle text-primary">
+        <i class="bi bi-file-earmark-spreadsheet"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6">
+    <div class="card-stat">
+      <div class="stat-label">Total GST Collected / Accrued</div>
+      <div class="stat-value text-info">{{ total_tax|currency }}</div>
+      <div class="stat-subtext">CGST + SGST + IGST</div>
+      <div class="stat-icon-bg bg-info-subtle text-info">
+        <i class="bi bi-bank"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6">
+    <div class="card-stat">
+      <div class="stat-label">Payments Received</div>
+      <div class="stat-value text-success">{{ total_collected|currency }}</div>
+      <div class="stat-subtext">Realized bank inflow</div>
+      <div class="stat-icon-bg bg-success-subtle text-success">
+        <i class="bi bi-cash-stack"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6">
+    <div class="card-stat">
+      <div class="stat-label">Outstanding Receivables</div>
+      <div class="stat-value text-danger">{{ total_outstanding|currency }}</div>
+      <div class="stat-subtext">Pending client settlement</div>
+      <div class="stat-icon-bg bg-danger-subtle text-danger">
+        <i class="bi bi-exclamation-circle"></i>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- GST Breakdown Card -->
+<div class="card-modern p-3 mb-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h6 class="fw-bold text-dark mb-0"><i class="bi bi-receipt-cutoff me-1.5 text-primary"></i>GST Summary Snapshot (Benchmark Tax Analysis)</h6>
+    <a href="{{ url_for('reports.gst_summary') }}" class="small text-decoration-none">Full GST Register &rarr;</a>
+  </div>
+  <div class="row g-3 text-center">
+    <div class="col-md-3">
+      <div class="p-2.5 border rounded bg-light">
+        <div class="text-muted small fw-semibold">CGST (Intra-State 2.5%)</div>
+        <div class="fs-5 fw-bold text-dark">{{ total_cgst|currency }}</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="p-2.5 border rounded bg-light">
+        <div class="text-muted small fw-semibold">SGST (Intra-State 2.5%)</div>
+        <div class="fs-5 fw-bold text-dark">{{ total_sgst|currency }}</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="p-2.5 border rounded bg-light">
+        <div class="text-muted small fw-semibold">IGST (Inter-State 5.0%)</div>
+        <div class="fs-5 fw-bold text-dark">{{ total_igst|currency }}</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="p-2.5 border rounded bg-primary-subtle border-primary-subtle">
+        <div class="text-primary small fw-semibold">TOTAL GST LIABILITY</div>
+        <div class="fs-5 fw-bold text-primary">{{ total_tax|currency }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Receivables Ageing Table -->
+<div class="card-modern overflow-hidden mb-4">
+  <div class="p-3 border-bottom d-flex align-items-center justify-content-between bg-light">
+    <div>
+      <h6 class="fw-bold text-dark mb-0"><i class="bi bi-hourglass-bottom me-1.5 text-danger"></i>Accounts Receivable Ageing Summary</h6>
+      <small class="text-muted">Overdue classification based on invoice generation date</small>
+    </div>
+    <a href="{{ url_for('payments.receivables') }}" class="btn btn-sm btn-outline-secondary">Detailed Ageing &rarr;</a>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-modern">
+      <thead>
+        <tr>
+          <th>Customer</th>
+          <th>State</th>
+          <th>GSTIN</th>
+          <th>Total Outstanding</th>
+          <th>0 - 30 Days</th>
+          <th>31 - 60 Days</th>
+          <th>61 - 90 Days</th>
+          <th>90+ Days</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in receivables_summary %}
+        <tr>
+          <td class="fw-semibold text-dark">{{ c.customer_name }}</td>
+          <td>{{ c.state }}</td>
+          <td class="font-monospace text-muted small">{{ c.gstin }}</td>
+          <td class="fw-bold text-danger">{{ c.total_outstanding|currency }}</td>
+          <td class="fw-medium text-dark">{{ c.bucket_0_30|currency }}</td>
+          <td class="fw-medium text-dark">{{ c.bucket_31_60|currency }}</td>
+          <td class="fw-medium text-dark">{{ c.bucket_61_90|currency }}</td>
+          <td class="fw-medium text-dark">{{ c.bucket_90_plus|currency }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8" class="text-center py-4 text-muted small">No outstanding receivables recorded.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Invoices & Collections Side-by-Side -->
+<div class="row g-4">
+  <div class="col-lg-6">
+    <div class="card-modern p-3">
+      <h6 class="fw-bold text-dark mb-3"><i class="bi bi-receipt text-primary me-1.5"></i>Recent Invoices Issued</h6>
+      <table class="table table-sm">
+        <thead>
+          <tr class="text-muted small">
+            <th>Invoice #</th>
+            <th>Customer</th>
+            <th>Total</th>
+            <th>Balance Due</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for inv in recent_invoices %}
+          <tr>
+            <td><a href="{{ url_for('invoices.view', id=inv.id) }}" class="fw-semibold text-primary text-decoration-none">{{ inv.invoice_number }}</a></td>
+            <td>{{ inv.customer_name }}</td>
+            <td class="fw-semibold">{{ inv.total_amount|currency }}</td>
+            <td class="fw-bold text-danger">{{ inv.balance_due|currency }}</td>
+            <td><span class="badge-status badge-{{ inv.status|lower }}">{{ inv.status }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card-modern p-3">
+      <h6 class="fw-bold text-dark mb-3"><i class="bi bi-check-circle-fill text-success me-1.5"></i>Recent Customer Payments Recorded</h6>
+      <table class="table table-sm">
+        <thead>
+          <tr class="text-muted small">
+            <th>Receipt #</th>
+            <th>Customer</th>
+            <th>Method</th>
+            <th>Ref / UTR</th>
+            <th>Amount Paid</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for pay in recent_payments %}
+          <tr>
+            <td class="fw-semibold text-dark">{{ pay.payment_number }}</td>
+            <td>{{ pay.customer.name }}</td>
+            <td><span class="badge bg-light text-dark border">{{ pay.payment_method }}</span></td>
+            <td class="font-monospace small text-muted">{{ pay.reference_number or '-' }}</td>
+            <td class="fw-bold text-success">{{ pay.amount|currency }}</td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="5" class="text-center py-3 text-muted small">No payments recorded yet.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

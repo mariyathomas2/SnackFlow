@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+{% block title %}GST Invoices - SnackFlow{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 gap-2">
+  <div>
+    <h3 class="fw-bold text-dark mb-1">GST Tax Invoices Register</h3>
+    <p class="text-muted small mb-0">Statutory tax invoices complying with Section 31 of GST Act, FY-based numbering, and downloadable PDFs</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('reports.gst_summary') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-file-earmark-spreadsheet me-1"></i>GST Summary</a>
+    <a href="{{ url_for('sales.index', status='APPROVED') }}" class="btn btn-primary-custom"><i class="bi bi-plus-lg me-1"></i>Invoice Approved Order</a>
+  </div>
+</div>
+
+<!-- Financial Stats -->
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <div class="card-stat">
+      <div class="stat-label">Total Billed Invoices Value</div>
+      <div class="stat-value text-primary">{{ total_invoiced|currency }}</div>
+      <div class="stat-subtext">{{ invoices|length }} total issued invoices</div>
+      <div class="stat-icon-bg bg-primary-subtle text-primary">
+        <i class="bi bi-receipt"></i>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card-stat">
+      <div class="stat-label">Total Receivables Outstanding</div>
+      <div class="stat-value text-danger">{{ total_due|currency }}</div>
+      <div class="stat-subtext">Uncollected customer balances</div>
+      <div class="stat-icon-bg bg-danger-subtle text-danger">
+        <i class="bi bi-hourglass-split"></i>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Status Filters -->
+<div class="card-modern p-2.5 mb-4 d-flex flex-wrap gap-2 align-items-center">
+  <span class="small fw-bold text-muted ps-2">Filter by Status:</span>
+  <a href="{{ url_for('invoices.index') }}" class="btn btn-sm {% if not current_status %}btn-primary{% else %}btn-light border{% endif %}">All</a>
+  {% for st in statuses %}
+  <a href="{{ url_for('invoices.index', status=st) }}" class="btn btn-sm {% if current_status == st %}btn-primary{% else %}btn-light border{% endif %}">
+    {{ st }}
+  </a>
+  {% endfor %}
+</div>
+
+<div class="card-modern overflow-hidden">
+  <div class="table-responsive">
+    <table class="table table-modern">
+      <thead>
+        <tr>
+          <th>Invoice #</th>
+          <th>Date</th>
+          <th>Customer Name</th>
+          <th>Supply Type</th>
+          <th>Taxable Turnover</th>
+          <th>GST Tax</th>
+          <th>Total Invoice Value</th>
+          <th>Balance Due</th>
+          <th>Status</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for inv in invoices %}
+        <tr>
+          <td class="fw-bold font-monospace text-primary">
+            <a href="{{ url_for('invoices.view', id=inv.id) }}" class="text-decoration-none">{{ inv.invoice_number }}</a>
+          </td>
+          <td>{{ inv.invoice_date|date_format }}</td>
+          <td>
+            <div class="fw-semibold text-dark">{{ inv.customer_name }}</div>
+            <small class="text-muted font-monospace">{{ inv.customer_gstin or 'Unregistered' }}</small>
+          </td>
+          <td>
+            {% if inv.is_interstate %}
+              <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Inter-State (IGST)</span>
+            {% else %}
+              <span class="badge bg-success-subtle text-success border border-success-subtle">Intra-State (CGST+SGST)</span>
+            {% endif %}
+          </td>
+          <td>{{ inv.taxable_amount|currency }}</td>
+          <td class="fw-semibold text-info">{{ inv.total_tax_amount|currency }}</td>
+          <td class="fw-bold fs-6 text-dark">{{ inv.total_amount|currency }}</td>
+          <td>
+            {% if inv.balance_due > 0 %}
+              <span class="fw-bold text-danger">{{ inv.balance_due|currency }}</span>
+            {% else %}
+              <span class="badge bg-success-subtle text-success">Fully Paid</span>
+            {% endif %}
+          </td>
+          <td><span class="badge-status badge-{{ inv.status|lower }}">{{ inv.status }}</span></td>
+          <td class="text-end">
+            <div class="btn-group btn-group-sm">
+              <a href="{{ url_for('invoices.view', id=inv.id) }}" class="btn btn-outline-secondary py-0.5 px-2">View</a>
+              <a href="{{ url_for('invoices.download_pdf', id=inv.id) }}" class="btn btn-outline-danger py-0.5 px-2" title="Download GST Tax Invoice PDF">
+                <i class="bi bi-file-pdf"></i>
+              </a>
+              {% if inv.balance_due > 0 and inv.status != 'CANCELLED' %}
+              <a href="{{ url_for('payments.create', invoice_id=inv.id) }}" class="btn btn-outline-success py-0.5 px-2" title="Record Payment">
+                <i class="bi bi-cash"></i>
+              </a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="10" class="text-center py-5 text-muted small">No invoices found matching current filter.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

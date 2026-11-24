@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% block title %}Payments & Collections - SnackFlow{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 gap-2">
+  <div>
+    <h3 class="fw-bold text-dark mb-1">Customer Payments & Collections</h3>
+    <p class="text-muted small mb-0">Record bank receipts, NEFT/RTGS/UPI settlements, and allocate against open tax invoices</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('payments.receivables') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-clock-history me-1"></i>Receivables Ageing</a>
+    <a href="{{ url_for('payments.create') }}" class="btn btn-primary-custom"><i class="bi bi-plus-lg me-1"></i>Record New Payment</a>
+  </div>
+</div>
+
+<!-- Collections KPI -->
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <div class="card-stat">
+      <div class="stat-label">Total Realized Collections</div>
+      <div class="stat-value text-success">{{ total_collections|currency }}</div>
+      <div class="stat-subtext">{{ payments|length }} customer remittances recorded</div>
+      <div class="stat-icon-bg bg-success-subtle text-success">
+        <i class="bi bi-cash-stack"></i>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card-stat">
+      <div class="stat-label">Reconciliation Policy</div>
+      <div class="stat-value text-primary">Live Invoice Allocation</div>
+      <div class="stat-subtext">Payments automatically update invoice status and outstanding balance</div>
+      <div class="stat-icon-bg bg-primary-subtle text-primary">
+        <i class="bi bi-shield-check"></i>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card-modern overflow-hidden">
+  <div class="table-responsive">
+    <table class="table table-modern">
+      <thead>
+        <tr>
+          <th>Receipt #</th>
+          <th>Payment Date</th>
+          <th>Customer</th>
+          <th>Invoice Ref</th>
+          <th>Payment Method</th>
+          <th>Transaction Reference</th>
+          <th>Amount Paid</th>
+          <th>Recorded By</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in payments %}
+        <tr>
+          <td class="fw-bold font-monospace text-primary">{{ p.payment_number }}</td>
+          <td>{{ p.payment_date|date_format }}</td>
+          <td>
+            <div class="fw-semibold text-dark">{{ p.customer.name }}</div>
+            <small class="text-muted">{{ p.customer.state }}</small>
+          </td>
+          <td>
+            <a href="{{ url_for('invoices.view', id=p.invoice_id) }}" class="font-monospace small text-primary text-decoration-none">
+              {{ p.invoice.invoice_number }}
+            </a>
+          </td>
+          <td><span class="badge bg-light text-dark border">{{ p.payment_method }}</span></td>
+          <td class="font-monospace small text-muted">{{ p.reference_number or 'N/A' }}</td>
+          <td class="fw-bold fs-6 text-success">{{ p.amount|currency }}</td>
+          <td class="small text-muted">{{ p.created_by.full_name if p.created_by else 'Admin' }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8" class="text-center py-5 text-muted small">No payment records found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,221 @@
+{% extends 'base.html' %}
+{% block title %}Invoice {{ invoice.invoice_number }} - SnackFlow{% endblock %}
+
+{% block content %}
+<div class="mb-4 d-flex flex-wrap align-items-center justify-content-between gap-2">
+  <div>
+    <a href="{{ url_for('invoices.index') }}" class="btn btn-sm btn-link text-decoration-none p-0 text-muted">&larr; Back to Invoices</a>
+    <div class="d-flex align-items-center gap-2 mt-2">
+      <h3 class="fw-bold text-dark mb-0">GST Tax Invoice: {{ invoice.invoice_number }}</h3>
+      <span class="badge-status badge-{{ invoice.status|lower }} fs-6">{{ invoice.status }}</span>
+    </div>
+    <p class="text-muted small mb-0">Date of Invoice: {{ invoice.invoice_date|date_format }} | Due Date: {{ invoice.due_date|date_format }}</p>
+  </div>
+
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('invoices.download_pdf', id=invoice.id) }}" class="btn btn-danger fw-semibold">
+      <i class="bi bi-file-earmark-pdf me-1"></i>Download Official PDF
+    </a>
+    {% if invoice.balance_due > 0 and invoice.status != 'CANCELLED' %}
+    <a href="{{ url_for('payments.create', invoice_id=invoice.id) }}" class="btn btn-success fw-semibold">
+      <i class="bi bi-cash-stack me-1"></i>Record Payment
+    </a>
+    {% endif %}
+    {% if invoice.status != 'CANCELLED' and invoice.paid_amount == 0 and current_user.has_role(Role.FACTORY_ADMIN, Role.OWNER) %}
+    <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#cancelInvoiceModal">
+      <i class="bi bi-x-circle me-1"></i>Cancel Invoice
+    </button>
+    {% endif %}
+  </div>
+</div>
+
+{% if invoice.status == 'CANCELLED' %}
+<div class="alert alert-danger border-0 shadow-sm mb-4">
+  <div class="fw-bold"><i class="bi bi-exclamation-triangle-fill me-1"></i>THIS INVOICE HAS BEEN CANCELLED</div>
+  <div class="small"><b>Cancellation Reason:</b> {{ invoice.cancellation_reason or 'No reason recorded' }}</div>
+</div>
+{% endif %}
+
+<!-- Printable Invoice Card -->
+<div class="card-modern p-4 mb-4">
+  <!-- Header: Seller & Buyer Details -->
+  <div class="row g-4 border-bottom pb-4 mb-4">
+    <div class="col-md-6 border-end">
+      <div class="text-uppercase small fw-bold text-muted mb-1">Seller (Consignor)</div>
+      <h5 class="fw-bold text-dark mb-1">{{ COMPANY_NAME }}</h5>
+      <p class="small text-muted mb-1">{{ FACTORY_NAME }}<br/>Plot 42, SIDCO Industrial Estate, Kappalur, Madurai - 625008</p>
+      <div class="small"><b>GSTIN:</b> <span class="font-monospace fw-semibold text-primary">33AAAAA0000A1Z5</span></div>
+      <div class="small"><b>State of Supply:</b> Tamil Nadu (State Code: 33)</div>
+    </div>
+    <div class="col-md-6 ps-md-4">
+      <div class="text-uppercase small fw-bold text-muted mb-1">Billed To (Consignee)</div>
+      <h5 class="fw-bold text-dark mb-1">{{ invoice.customer_name }}</h5>
+      <p class="small text-muted mb-1">{{ invoice.customer_address }}</p>
+      <div class="small"><b>State:</b> {{ invoice.customer_state }} (Code: {{ invoice.customer_state_code }})</div>
+      <div class="small"><b>GSTIN / UIN:</b> <span class="font-monospace fw-semibold text-dark">{{ invoice.customer_gstin or 'Unregistered Consumer' }}</span></div>
+      <div class="small mt-1">
+        <b>Tax Slab Regime:</b> 
+        {% if invoice.is_interstate %}
+          <span class="badge bg-warning-subtle text-warning">Inter-State Transaction (IGST 5%)</span>
+        {% else %}
+          <span class="badge bg-success-subtle text-success">Intra-State Transaction (CGST 2.5% + SGST 2.5%)</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Items Table -->
+  <div class="table-responsive mb-4">
+    <table class="table table-bordered table-sm align-middle">
+      <thead class="table-light small">
+        <tr>
+          <th>#</th>
+          <th>Description of Goods</th>
+          <th>HSN</th>
+          <th>Qty</th>
+          <th>Unit Price</th>
+          <th>Taxable Value</th>
+          {% if invoice.is_interstate %}
+          <th>IGST Rate</th>
+          <th>IGST Amount</th>
+          {% else %}
+          <th>CGST (2.5%)</th>
+          <th>SGST (2.5%)</th>
+          {% endif %}
+          <th class="text-end">Total Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in invoice.items %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td>
+            <div class="fw-semibold text-dark">{{ item.product_name }}</div>
+          </td>
+          <td class="font-monospace text-muted">{{ item.hsn }}</td>
+          <td class="fw-bold text-dark">{{ item.quantity|format_qty(item.unit) }}</td>
+          <td>{{ item.unit_price|currency }}</td>
+          <td class="fw-semibold">{{ item.taxable_amount|currency }}</td>
+          {% if invoice.is_interstate %}
+          <td>{{ item.igst_rate }}%</td>
+          <td class="fw-semibold text-info">{{ item.igst_amount|currency }}</td>
+          {% else %}
+          <td class="fw-semibold">{{ item.cgst_amount|currency }}</td>
+          <td class="fw-semibold">{{ item.sgst_amount|currency }}</td>
+          {% endif %}
+          <td class="text-end fw-bold fs-6 text-dark">{{ item.total_amount|currency }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Financial Summary Row -->
+  <div class="row g-4 align-items-center">
+    <div class="col-md-6">
+      <div class="p-3 bg-light rounded border">
+        <h6 class="fw-bold small text-muted text-uppercase mb-2">Remittance Bank Coordinates</h6>
+        <div class="small"><b>Bank:</b> State Bank of India</div>
+        <div class="small"><b>Account No:</b> 398712345678</div>
+        <div class="small"><b>IFSC:</b> SBIN0001234</div>
+        <div class="small"><b>Branch:</b> Kappalur Industrial Estate, Madurai</div>
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <div class="p-3 bg-light rounded border">
+        <div class="d-flex justify-content-between py-1 small">
+          <span class="text-muted">Total Taxable Value:</span>
+          <span class="fw-bold text-dark">{{ invoice.taxable_amount|currency }}</span>
+        </div>
+        {% if invoice.is_interstate %}
+        <div class="d-flex justify-content-between py-1 small">
+          <span class="text-muted">Integrated GST (IGST 5%):</span>
+          <span class="fw-bold text-info">{{ invoice.igst_amount|currency }}</span>
+        </div>
+        {% else %}
+        <div class="d-flex justify-content-between py-1 small">
+          <span class="text-muted">Central GST (CGST 2.5%):</span>
+          <span class="fw-bold text-dark">{{ invoice.cgst_amount|currency }}</span>
+        </div>
+        <div class="d-flex justify-content-between py-1 small">
+          <span class="text-muted">State GST (SGST 2.5%):</span>
+          <span class="fw-bold text-dark">{{ invoice.sgst_amount|currency }}</span>
+        </div>
+        {% endif %}
+        <hr class="my-1.5">
+        <div class="d-flex justify-content-between py-1">
+          <span class="fw-bold text-dark">Invoice Total:</span>
+          <span class="fw-bold fs-5 text-primary">{{ invoice.total_amount|currency }}</span>
+        </div>
+        <div class="d-flex justify-content-between py-1 small text-success">
+          <span>Amount Paid to Date:</span>
+          <span class="fw-bold">{{ invoice.paid_amount|currency }}</span>
+        </div>
+        <div class="d-flex justify-content-between py-1 small text-danger">
+          <span class="fw-bold">Balance Due:</span>
+          <span class="fw-bold fs-6">{{ invoice.balance_due|currency }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Payments History for this Invoice -->
+{% if invoice.payments %}
+<div class="card-modern p-3">
+  <h6 class="fw-bold text-dark mb-3"><i class="bi bi-cash-stack text-success me-1.5"></i>Recorded Payments for this Invoice</h6>
+  <div class="table-responsive">
+    <table class="table table-sm">
+      <thead>
+        <tr class="text-muted small">
+          <th>Receipt #</th>
+          <th>Date</th>
+          <th>Payment Method</th>
+          <th>Ref / Transaction ID</th>
+          <th class="text-end">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in invoice.payments %}
+        <tr>
+          <td class="fw-bold text-dark">{{ p.payment_number }}</td>
+          <td>{{ p.payment_date|date_format }}</td>
+          <td><span class="badge bg-light text-dark border">{{ p.payment_method }}</span></td>
+          <td class="font-monospace small text-muted">{{ p.reference_number or 'N/A' }}</td>
+          <td class="text-end fw-bold text-success">{{ p.amount|currency }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Cancel Invoice Modal -->
+<div class="modal fade" id="cancelInvoiceModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('invoices.cancel', id=invoice.id) }}">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold text-danger">Cancel Invoice {{ invoice.invoice_number }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p class="small text-muted">
+            <b>Statutory Notice:</b> Posted invoices cannot be deleted. Cancelling this invoice issues an internal credit cancellation and logs an audit record.
+          </p>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Mandatory Reason for Cancellation</label>
+            <textarea name="reason" class="form-control" rows="3" placeholder="e.g. Rate dispute / Client request for order change / Duplicate entry" required></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Close</button>
+          <button type="submit" class="btn btn-sm btn-danger">Confirm Cancellation</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,220 @@
+{% extends 'base.html' %}
+{% block title %}Record Production Run - SnackFlow{% endblock %}
+
+{% block content %}
+<div class="mb-4 d-flex justify-content-between align-items-center">
+  <div>
+    <a href="{{ url_for('production.index') }}" class="btn btn-sm btn-link text-decoration-none p-0 text-muted">&larr; Back to Production Register</a>
+    <h3 class="fw-bold text-dark mt-2 mb-1">Execute Production Batch Run</h3>
+    <p class="text-muted small mb-0">Record raw material issues, manufacturing output, damaged packaging, direct labour, and energy overheads</p>
+  </div>
+  <button type="button" class="btn btn-sm btn-outline-warning fw-semibold" onclick="loadBenchmarkValues()">
+    <i class="bi bi-lightning-charge-fill me-1"></i>Autofill Benchmark Step 2 Values
+  </button>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-10">
+    <div class="card-modern p-4">
+      <form method="POST" action="{{ url_for('production.create') }}" id="productionForm">
+        <!-- Header Info -->
+        <div class="row g-3 mb-4">
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold">Target Product</label>
+            <select name="product_id" id="productSelect" class="form-select" required>
+              {% for p in products %}
+              <option value="{{ p.id }}">{{ p.name }} ({{ p.sku }}) - ₹{{ p.selling_price }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold">Bill of Materials (BOM)</label>
+            <select name="bom_id" id="bomSelect" class="form-select" required>
+              {% for b in boms %}
+              <option value="{{ b.id }}">{{ b.name }} (Base: {{ b.batch_size }} {{ b.unit }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold">Planned Batch Output (Standard Units)</label>
+            <input type="number" step="0.01" name="planned_quantity" id="plannedQtyInput" class="form-control" value="200" required oninput="calcVariances()">
+          </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold text-success">Actual Good Output Packets</label>
+            <input type="number" step="0.01" name="actual_output_good" id="actualGoodInput" class="form-control fw-bold border-success" value="188" required oninput="calcVariances()">
+            <small class="text-muted" style="font-size: 0.72rem;">Packets passing quality check</small>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold text-danger">Damaged Packaging / Pouches</label>
+            <input type="number" step="0.01" name="damaged_units" id="damagedPouchesInput" class="form-control border-danger" value="6" required oninput="calcVariances()">
+            <small class="text-muted" style="font-size: 0.72rem;">Scrapped during sealing/handling</small>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold">Cartons Used for Packing</label>
+            <input type="number" step="0.01" name="cartons_used" id="cartonsUsedInput" class="form-control" value="9" required>
+            <small class="text-muted" style="font-size: 0.72rem;">Outer shipper cartons</small>
+          </div>
+        </div>
+
+        <!-- Live Yield Variance Alert Box -->
+        <div class="alert alert-light border d-flex align-items-center justify-content-between py-2.5 mb-4" id="yieldAlertBox">
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-graph-down text-danger fs-5"></i>
+            <div>
+              <span class="small fw-bold">Live Yield Variance:</span>
+              <span class="fw-bold fs-6 ms-1" id="yieldVarDisplay">-6.00%</span>
+              <small class="text-muted ms-2">(Benchmark: 188 actual vs 200 planned = -6%)</small>
+            </div>
+          </div>
+          <span class="badge bg-danger" id="yieldBadge">VARIANCE FLAGGED</span>
+        </div>
+
+        <!-- Raw Material Consumption Table -->
+        <h6 class="fw-bold text-dark mb-2">Raw Material Actual Issues & Consumptions</h6>
+        <p class="text-muted small mb-3">Record actual ingredient quantities consumed. System will automatically deduct from inventory ledger.</p>
+
+        <div class="table-responsive mb-4">
+          <table class="table table-bordered table-sm align-middle">
+            <thead class="table-light small">
+              <tr>
+                <th>Raw Material</th>
+                <th>Standard Rate</th>
+                <th>Planned Consumption</th>
+                <th style="width: 200px;">Actual Consumed Qty</th>
+                <th style="width: 160px;">Scrap / Wastage Qty</th>
+                <th>Variance Flag</th>
+              </tr>
+            </thead>
+            <tbody id="materialsBody">
+              {% for rm in raw_materials %}
+              <tr class="material-input-row" data-id="{{ rm.id }}" data-name="{{ rm.name }}">
+                <td>
+                  <input type="hidden" name="raw_material_id[]" value="{{ rm.id }}">
+                  <div class="fw-semibold text-dark small">{{ rm.name }}</div>
+                  <small class="text-muted font-monospace">{{ rm.code }} ({{ rm.unit }})</small>
+                </td>
+                <td class="small">{{ rm.cost|currency }}/{{ rm.unit }}</td>
+                <td>
+                  <div class="input-group input-group-sm">
+                    <input type="number" step="0.0001" name="planned_qty[]" class="form-control planned-input" 
+                      value="{% if 'Flour' in rm.name %}40{% elif 'Cooking' in rm.name %}10{% elif 'Salt' in rm.name %}1.2{% elif 'Pouch' in rm.name %}200{% elif 'Carton' in rm.name %}10{% else %}0{% endif %}">
+                    <span class="input-group-text">{{ rm.unit }}</span>
+                  </div>
+                </td>
+                <td>
+                  <div class="input-group input-group-sm">
+                    <input type="number" step="0.0001" name="actual_qty[]" class="form-control actual-input fw-semibold" 
+                      value="{% if 'Flour' in rm.name %}40{% elif 'Cooking' in rm.name %}10.5{% elif 'Salt' in rm.name %}1.2{% elif 'Pouch' in rm.name %}188{% elif 'Carton' in rm.name %}9{% else %}0{% endif %}"
+                      oninput="checkRowVariance(this)">
+                    <span class="input-group-text">{{ rm.unit }}</span>
+                  </div>
+                </td>
+                <td>
+                  <div class="input-group input-group-sm">
+                    <input type="number" step="0.0001" name="wastage_qty[]" class="form-control wastage-input" 
+                      value="{% if 'Pouch' in rm.name %}6{% else %}0{% endif %}">
+                    <span class="input-group-text">{{ rm.unit }}</span>
+                  </div>
+                </td>
+                <td class="row-variance-flag">
+                  {% if 'Cooking' in rm.name %}
+                    <span class="badge bg-warning text-dark">+5.0% (Oil Alert)</span>
+                  {% else %}
+                    <span class="badge bg-light text-muted border">Normal</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Overheads & Manufacturing Costs -->
+        <h6 class="fw-bold text-dark mb-2">Direct Overheads & Production Expenses</h6>
+        <div class="row g-3 mb-4">
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold">Direct Labour Cost (₹)</label>
+            <input type="number" step="0.01" name="direct_labor_cost" id="laborInput" class="form-control" value="1200.00" required>
+            <small class="text-muted" style="font-size: 0.72rem;">Benchmark Step 8: ₹1,200</small>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold">Gas and Power (Energy) (₹)</label>
+            <input type="number" step="0.01" name="power_fuel_cost" id="powerInput" class="form-control" value="600.00" required>
+            <small class="text-muted" style="font-size: 0.72rem;">Benchmark Step 8: ₹600</small>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold">Other Overheads (₹)</label>
+            <input type="number" step="0.01" name="other_overheads" class="form-control" value="0.00">
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label small fw-semibold">Production Run Notes</label>
+          <input type="text" name="notes" class="form-control" value="Benchmark Step 2: Murukku 200g production run with 6 damaged pouches and +5% oil variance">
+        </div>
+
+        <div class="d-flex justify-content-end gap-2">
+          <a href="{{ url_for('production.index') }}" class="btn btn-light border">Cancel</a>
+          <button type="submit" class="btn btn-primary-custom" data-confirm="Commit production run? This will deduct raw materials and credit finished goods in the stock ledger.">
+            Finalize & Commit Production Run
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  function calcVariances() {
+    const planned = parseFloat(document.getElementById('plannedQtyInput').value) || 1;
+    const actual = parseFloat(document.getElementById('actualGoodInput').value) || 0;
+    const yieldVar = (((actual - planned) / planned) * 100).toFixed(2);
+    
+    const display = document.getElementById('yieldVarDisplay');
+    const badge = document.getElementById('yieldBadge');
+    
+    display.innerText = (yieldVar > 0 ? '+' : '') + yieldVar + '%';
+
+    if (yieldVar < -2.0) {
+      display.className = 'fw-bold fs-6 ms-1 text-danger';
+      badge.className = 'badge bg-danger';
+      badge.innerText = 'VARIANCE FLAGGED (-6% Benchmark)';
+    } else {
+      display.className = 'fw-bold fs-6 ms-1 text-success';
+      badge.className = 'badge bg-success';
+      badge.innerText = 'OPTIMAL YIELD';
+    }
+  }
+
+  function checkRowVariance(inputEl) {
+    const row = inputEl.closest('tr');
+    const planned = parseFloat(row.querySelector('.planned-input').value) || 0;
+    const actual = parseFloat(inputEl.value) || 0;
+    const flagTd = row.querySelector('.row-variance-flag');
+
+    if (planned > 0) {
+      const varPct = (((actual - planned) / planned) * 100).toFixed(1);
+      if (varPct > 2.0) {
+        flagTd.innerHTML = `<span class="badge bg-warning text-dark">+${varPct}% (Alert)</span>`;
+      } else if (varPct < -2.0) {
+        flagTd.innerHTML = `<span class="badge bg-danger text-white">${varPct}% (Under)</span>`;
+      } else {
+        flagTd.innerHTML = `<span class="badge bg-light text-muted border">Normal</span>`;
+      }
+    }
+  }
+
+  function loadBenchmarkValues() {
+    document.getElementById('plannedQtyInput').value = 200;
+    document.getElementById('actualGoodInput').value = 188;
+    document.getElementById('damagedPouchesInput').value = 6;
+    document.getElementById('cartonsUsedInput').value = 9;
+    document.getElementById('laborInput').value = 1200.00;
+    document.getElementById('powerInput').value = 600.00;
+    calcVariances();
+  }
+</script>
+{% endblock %}

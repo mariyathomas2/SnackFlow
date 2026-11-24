@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+{% block title %}Products Master - SnackFlow{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 gap-2">
+  <div>
+    <h3 class="fw-bold text-dark mb-1">Products Master Catalog</h3>
+    <p class="text-muted small mb-0">Manage finished goods, SKU codes, HSN classifications, GST tax slabs, and wholesale prices</p>
+  </div>
+  {% if current_user.has_role(Role.FACTORY_ADMIN, Role.OWNER) %}
+  <button class="btn btn-primary-custom" data-bs-toggle="modal" data-bs-target="#newProductModal">
+    <i class="bi bi-plus-lg me-1"></i>Add Product
+  </button>
+  {% endif %}
+</div>
+
+<div class="card-modern overflow-hidden">
+  <div class="table-responsive">
+    <table class="table table-modern">
+      <thead>
+        <tr>
+          <th>SKU</th>
+          <th>Product Name</th>
+          <th>HSN Code</th>
+          <th>Selling Price (Excl. Tax)</th>
+          <th>GST Rate</th>
+          <th>Unit</th>
+          <th>Status</th>
+          {% if current_user.has_role(Role.FACTORY_ADMIN, Role.OWNER) %}
+          <th class="text-end">Actions</th>
+          {% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in products %}
+        <tr>
+          <td class="fw-bold text-primary font-monospace">{{ p.sku }}</td>
+          <td>
+            <div class="fw-semibold text-dark">{{ p.name }}</div>
+            {% if p.description %}<small class="text-muted">{{ p.description }}</small>{% endif %}
+          </td>
+          <td class="font-monospace text-muted">{{ p.hsn }}</td>
+          <td class="fw-bold fs-6 text-dark">{{ p.selling_price|currency }}</td>
+          <td><span class="badge bg-light text-dark border">{{ p.gst_rate }}% GST</span></td>
+          <td>{{ p.unit }}</td>
+          <td>
+            <span class="badge {% if p.status == 'Active' %}bg-success-subtle text-success border border-success-subtle{% else %}bg-secondary{% endif %}">
+              {{ p.status }}
+            </span>
+          </td>
+          {% if current_user.has_role(Role.FACTORY_ADMIN, Role.OWNER) %}
+          <td class="text-end">
+            <button class="btn btn-sm btn-outline-secondary py-0.5 px-2" data-bs-toggle="modal" data-bs-target="#editModal{{ p.id }}">
+              <i class="bi bi-pencil me-1"></i>Edit
+            </button>
+          </td>
+          {% endif %}
+        </tr>
+
+        <!-- Edit Modal -->
+        <div class="modal fade" id="editModal{{ p.id }}" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog">
+            <div class="modal-content">
+              <form method="POST" action="{{ url_for('master.edit_product', id=p.id) }}">
+                <div class="modal-header">
+                  <h5 class="modal-title fw-bold">Edit Product: {{ p.name }}</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                  <div class="mb-3">
+                    <label class="form-label small fw-semibold">Product Name</label>
+                    <input type="text" name="name" class="form-control" value="{{ p.name }}" required>
+                  </div>
+                  <div class="row g-2 mb-3">
+                    <div class="col-6">
+                      <label class="form-label small fw-semibold">Selling Price (₹)</label>
+                      <input type="number" step="0.01" name="selling_price" class="form-control" value="{{ p.selling_price }}" required>
+                    </div>
+                    <div class="col-6">
+                      <label class="form-label small fw-semibold">GST Rate (%)</label>
+                      <input type="number" step="0.01" name="gst_rate" class="form-control" value="{{ p.gst_rate }}" required>
+                    </div>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label small fw-semibold">HSN Code</label>
+                    <input type="text" name="hsn" class="form-control" value="{{ p.hsn }}" required>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label small fw-semibold">Status</label>
+                    <select name="status" class="form-select">
+                      <option value="Active" {% if p.status == 'Active' %}selected{% endif %}>Active</option>
+                      <option value="Inactive" {% if p.status == 'Inactive' %}selected{% endif %}>Inactive</option>
+                    </select>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label small fw-semibold">Description</label>
+                    <textarea name="description" class="form-control" rows="2">{{ p.description or '' }}</textarea>
+                  </div>
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Cancel</button>
+                  <button type="submit" class="btn btn-sm btn-primary">Save Changes</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- New Product Modal -->
+<div class="modal fade" id="newProductModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('master.products') }}">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold">Add New Product</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Product Name</label>
+            <input type="text" name="name" class="form-control" placeholder="e.g. Murukku 200g" required>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label small fw-semibold">SKU</label>
+              <input type="text" name="sku" class="form-control" placeholder="e.g. MUR-200G" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Unit</label>
+              <input type="text" name="unit" class="form-control" value="Packets" required>
+            </div>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Selling Price (₹)</label>
+              <input type="number" step="0.01" name="selling_price" class="form-control" value="50.00" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-semibold">GST Rate (%)</label>
+              <input type="number" step="0.01" name="gst_rate" class="form-control" value="5.00" required>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">HSN Code</label>
+            <input type="text" name="hsn" class="form-control" value="19059040" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Description</label>
+            <textarea name="description" class="form-control" rows="2" placeholder="e.g. Traditional crispy South Indian snack"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-sm btn-primary">Create Product</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

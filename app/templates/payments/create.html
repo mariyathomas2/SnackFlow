@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+{% block title %}Record Payment - SnackFlow{% endblock %}
+
+{% block content %}
+<div class="mb-4 d-flex flex-wrap justify-content-between align-items-center gap-2">
+  <div>
+    <a href="{{ url_for('payments.index') }}" class="btn btn-sm btn-link text-decoration-none p-0 text-muted">&larr; Back to Payments</a>
+    <h3 class="fw-bold text-dark mt-2 mb-1">Record Customer Payment</h3>
+    <p class="text-muted small mb-0">Record bank receipt or electronic settlement and credit against outstanding invoice balance</p>
+  </div>
+  <button type="button" class="btn btn-sm btn-outline-success fw-semibold" onclick="loadBenchmarkPayment()">
+    <i class="bi bi-lightning-charge-fill me-1"></i>Autofill Step 7 Benchmark (₹4,000 Retailer A)
+  </button>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="card-modern p-4">
+      <form method="POST" action="{{ url_for('payments.create') }}" id="paymentForm">
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Select Open Invoice to Settle</label>
+          <select name="invoice_id" id="invoiceSelect" class="form-select" onchange="updateInvoiceDetails()" required>
+            <option value="">Select Outstanding Invoice</option>
+            {% for inv in open_invoices %}
+            <option value="{{ inv.id }}" 
+              data-customer="{{ inv.customer_name }}"
+              data-total="{{ inv.total_amount }}"
+              data-due="{{ inv.balance_due }}"
+              {% if selected_inv_id == inv.id %}selected{% endif %}>
+              {{ inv.invoice_number }} - {{ inv.customer_name }} (Total: ₹{{ inv.total_amount }} | Due: ₹{{ inv.balance_due }})
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Selected Invoice Status Box -->
+        <div class="card p-3 bg-light border mb-4" id="invDetailBox" style="display: none;">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="small text-muted">CUSTOMER</div>
+              <div class="fw-bold text-dark" id="dispCustomer">-</div>
+            </div>
+            <div>
+              <div class="small text-muted">INVOICE TOTAL</div>
+              <div class="fw-semibold text-dark" id="dispTotal">-</div>
+            </div>
+            <div>
+              <div class="small text-danger fw-bold">REMAINING BALANCE DUE</div>
+              <div class="fs-5 fw-bold text-danger" id="dispDue">-</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold">Payment Amount (₹)</label>
+            <input type="number" step="0.01" min="0.01" name="amount" id="amountInput" class="form-control fw-bold fs-6 text-success" placeholder="0.00" required>
+            <small class="text-muted" style="font-size: 0.72rem;">Partial or full payments accepted</small>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold">Payment Date</label>
+            <input type="date" name="payment_date" class="form-control" value="{{ today.strftime('%Y-%m-%d') }}" required>
+          </div>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold">Payment Method</label>
+            <select name="payment_method" id="methodSelect" class="form-select" required>
+              {% for m in payment_methods %}
+              <option value="{{ m }}">{{ m }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold">Transaction Reference / UTR Number</label>
+            <input type="text" name="reference_number" id="refInput" class="form-control font-monospace" placeholder="e.g. UTR-SBI-2026-9812">
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label small fw-semibold">Payment Remarks / Bank Notes</label>
+          <input type="text" name="notes" id="notesInput" class="form-control" placeholder="e.g. Direct bank transfer via NEFT / Received in SBI account">
+        </div>
+
+        <div class="d-flex justify-content-end gap-2">
+          <a href="{{ url_for('payments.index') }}" class="btn btn-light border">Cancel</a>
+          <button type="submit" class="btn btn-success fw-semibold" data-confirm="Confirm and record customer payment?">
+            <i class="bi bi-check2-circle me-1"></i>Record Payment & Update Invoice
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  function updateInvoiceDetails() {
+    const sel = document.getElementById('invoiceSelect');
+    const opt = sel.options[sel.selectedIndex];
+    const box = document.getElementById('invDetailBox');
+
+    if (opt && opt.value) {
+      document.getElementById('dispCustomer').innerText = opt.getAttribute('data-customer');
+      document.getElementById('dispTotal').innerText = '₹' + parseFloat(opt.getAttribute('data-total')).toFixed(2);
+      document.getElementById('dispDue').innerText = '₹' + parseFloat(opt.getAttribute('data-due')).toFixed(2);
+      
+      const maxDue = parseFloat(opt.getAttribute('data-due'));
+      document.getElementById('amountInput').max = maxDue;
+      if (!document.getElementById('amountInput').value) {
+        document.getElementById('amountInput').value = maxDue.toFixed(2);
+      }
+      box.style.display = 'block';
+    } else {
+      box.style.display = 'none';
+    }
+  }
+
+  function loadBenchmarkPayment() {
+    const sel = document.getElementById('invoiceSelect');
+    // Find invoice for Retailer A
+    for (let i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].text.includes('Retailer A')) {
+        sel.selectedIndex = i;
+        break;
+      }
+    }
+    updateInvoiceDetails();
+    document.getElementById('amountInput').value = '4000.00';
+    document.getElementById('refInput').value = 'NEFT/SBI/98172635';
+    document.getElementById('notesInput').value = 'Benchmark Step 7: Part payment of Rs. 4,000 from Retailer A';
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    updateInvoiceDetails();
+  });
+</script>
+{% endblock %}

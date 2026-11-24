@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% block title %}Monthly Sales Register - SnackFlow{% endblock %}
+
+{% block content %}
+<div class="mb-4 d-flex flex-wrap align-items-center justify-content-between gap-2">
+  <div>
+    <a href="{{ url_for('reports.index') }}" class="btn btn-sm btn-link text-decoration-none p-0 text-muted">&larr; Back to Reports</a>
+    <h3 class="fw-bold text-dark mt-2 mb-1">Monthly Sales & Invoicing Register</h3>
+    <p class="text-muted small mb-0">Statutory record of all billed sales orders with full tax component breakdown</p>
+  </div>
+  <a href="{{ url_for('reports.sales_register', export='csv') }}" class="btn btn-success fw-semibold">
+    <i class="bi bi-file-earmark-excel me-1"></i>Download CSV Report
+  </a>
+</div>
+
+<!-- Summary Row -->
+<div class="row g-3 mb-4 text-center">
+  <div class="col-md-3">
+    <div class="card-modern p-3">
+      <div class="text-muted small">TOTAL TAXABLE VALUE</div>
+      <div class="fs-5 fw-bold text-dark">{{ total_taxable|currency }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card-modern p-3">
+      <div class="text-muted small">TOTAL CGST (2.5%)</div>
+      <div class="fs-5 fw-bold text-dark">{{ total_cgst|currency }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card-modern p-3">
+      <div class="text-muted small">TOTAL SGST (2.5%)</div>
+      <div class="fs-5 fw-bold text-dark">{{ total_sgst|currency }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card-modern p-3 bg-primary-subtle border-primary-subtle">
+      <div class="text-primary small fw-semibold">TOTAL BILLED VALUE</div>
+      <div class="fs-5 fw-bold text-primary">{{ total_amount|currency }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="card-modern overflow-hidden">
+  <div class="table-responsive">
+    <table class="table table-modern">
+      <thead>
+        <tr>
+          <th>Invoice #</th>
+          <th>Date</th>
+          <th>Customer Name</th>
+          <th>State</th>
+          <th>GSTIN</th>
+          <th>Taxable Turnover</th>
+          <th>CGST</th>
+          <th>SGST</th>
+          <th>IGST</th>
+          <th>Total Invoice Value</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for inv in invoices %}
+        <tr>
+          <td class="fw-bold font-monospace text-primary">
+            <a href="{{ url_for('invoices.view', id=inv.id) }}" class="text-decoration-none">{{ inv.invoice_number }}</a>
+          </td>
+          <td>{{ inv.invoice_date|date_format }}</td>
+          <td>{{ inv.customer_name }}</td>
+          <td>{{ inv.customer_state }}</td>
+          <td class="font-monospace small text-muted">{{ inv.customer_gstin or 'Unregistered' }}</td>
+          <td>{{ inv.taxable_amount|currency }}</td>
+          <td>{{ inv.cgst_amount|currency }}</td>
+          <td>{{ inv.sgst_amount|currency }}</td>
+          <td>{{ inv.igst_amount|currency }}</td>
+          <td class="fw-bold text-dark">{{ inv.total_amount|currency }}</td>
+          <td><span class="badge-status badge-{{ inv.status|lower }}">{{ inv.status }}</span></td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="11" class="text-center py-5 text-muted small">No invoice records found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

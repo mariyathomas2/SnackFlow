@@ -1,0 +1,207 @@
+{% extends 'base.html' %}
+{% block title %}Batch {{ run.batch_number }} - SnackFlow{% endblock %}
+
+{% block content %}
+<div class="mb-4 d-flex flex-wrap align-items-center justify-content-between gap-2">
+  <div>
+    <a href="{{ url_for('production.index') }}" class="btn btn-sm btn-link text-decoration-none p-0 text-muted">&larr; Back to Production Runs</a>
+    <div class="d-flex align-items-center gap-2 mt-2">
+      <h3 class="fw-bold text-dark mb-0">Production Batch: {{ run.batch_number }}</h3>
+      <span class="badge bg-success-subtle text-success border border-success-subtle fs-6">{{ run.status }}</span>
+    </div>
+    <p class="text-muted small mb-0">Run Date: {{ run.run_date|date_format }} | Product: {{ run.product.name }} ({{ run.product.sku }})</p>
+  </div>
+  <div>
+    <a href="{{ url_for('costing.index') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-calculator me-1"></i>Costing Summary</a>
+  </div>
+</div>
+
+<!-- Yield Variance Banner -->
+{% if run.has_yield_variance_alert %}
+<div class="alert alert-danger border-0 shadow-sm d-flex align-items-center justify-content-between mb-4">
+  <div class="d-flex align-items-center gap-2">
+    <i class="bi bi-exclamation-octagon-fill fs-4 text-danger"></i>
+    <div>
+      <div class="fw-bold">YIELD VARIANCE ALERT FLAGGED: {{ run.yield_variance_pct }}%</div>
+      <div class="small">Planned: <b>{{ run.planned_quantity|format_qty }}</b> packets &rarr; Actual Good Output: <b>{{ run.actual_output_good|format_qty }}</b> packets (Shortfall: {{ (run.planned_quantity - run.actual_output_good)|format_qty }} pkts).</div>
+    </div>
+  </div>
+  <span class="badge bg-danger text-white">Under standard by {{ run.yield_variance_pct|abs }}%</span>
+</div>
+{% endif %}
+
+<!-- Key Metrics Row -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card-stat">
+      <div class="stat-label">Good Finished Packets</div>
+      <div class="stat-value text-success">{{ run.actual_output_good|format_qty('Packets') }}</div>
+      <div class="stat-subtext">Added to Finished Goods stock</div>
+      <div class="stat-icon-bg bg-success-subtle text-success">
+        <i class="bi bi-box2-heart"></i>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card-stat">
+      <div class="stat-label">Damaged Packaging</div>
+      <div class="stat-value text-danger">{{ run.damaged_units|format_qty('Pouches') }}</div>
+      <div class="stat-subtext">Scrapped in production</div>
+      <div class="stat-icon-bg bg-danger-subtle text-danger">
+        <i class="bi bi-trash3"></i>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card-stat">
+      <div class="stat-label">Total Batch Cost</div>
+      <div class="stat-value text-primary">{{ run.total_production_cost|currency }}</div>
+      <div class="stat-subtext">Materials + Labour + Energy</div>
+      <div class="stat-icon-bg bg-primary-subtle text-primary">
+        <i class="bi bi-currency-rupee"></i>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card-stat">
+      <div class="stat-label">Actual Cost per Packet</div>
+      <div class="stat-value text-dark">{{ run.cost_per_packet|currency }}</div>
+      <div class="stat-subtext text-success">Gross Margin: <b>{{ run.gross_margin_pct }}%</b> ({{ run.gross_margin_per_packet|currency }})</div>
+      <div class="stat-icon-bg bg-info-subtle text-info">
+        <i class="bi bi-tag"></i>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Material Consumptions Comparison Table -->
+<div class="card-modern mb-4 overflow-hidden">
+  <div class="p-3 border-bottom d-flex align-items-center justify-content-between bg-light">
+    <h6 class="fw-bold text-dark mb-0"><i class="bi bi-boxes me-1.5 text-primary"></i>Raw Material Consumptions & Variances</h6>
+    <span class="badge bg-light text-muted border">Automatic Stock Ledger Deductions</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-modern">
+      <thead>
+        <tr>
+          <th>Raw Material</th>
+          <th>Planned Qty</th>
+          <th>Actual Consumed</th>
+          <th>Wastage / Scrap</th>
+          <th>Total Drawn from Stock</th>
+          <th>Consumption Variance</th>
+          <th>Unit Cost</th>
+          <th>Total Cost</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in run.consumptions %}
+        <tr>
+          <td>
+            <div class="fw-semibold text-dark">{{ c.raw_material.name }}</div>
+            <small class="text-muted font-monospace">{{ c.raw_material.code }}</small>
+          </td>
+          <td>{{ c.planned_quantity|format_qty(c.unit) }}</td>
+          <td class="fw-bold text-dark">{{ c.actual_quantity|format_qty(c.unit) }}</td>
+          <td>
+            {% if c.wastage_quantity > 0 %}
+              <span class="text-danger fw-semibold">{{ c.wastage_quantity|format_qty(c.unit) }}</span>
+            {% else %}
+              <span class="text-muted">0 {{ c.unit }}</span>
+            {% endif %}
+          </td>
+          <td class="fw-bold text-primary">{{ (c.actual_quantity + c.wastage_quantity)|format_qty(c.unit) }}</td>
+          <td>
+            {% if c.variance_pct > 2.0 %}
+              <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle-fill me-1"></i>+{{ c.variance_pct }}% (Over)</span>
+            {% elif c.variance_pct < -2.0 %}
+              <span class="badge bg-danger text-white">{{ c.variance_pct }}% (Under)</span>
+            {% else %}
+              <span class="badge bg-light text-dark border">{{ c.variance_pct }}% (Standard)</span>
+            {% endif %}
+          </td>
+          <td>{{ c.unit_cost|currency }}/{{ c.unit }}</td>
+          <td class="fw-bold text-dark">{{ c.total_cost|currency }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot class="table-light">
+        <tr>
+          <td colspan="7" class="text-end fw-bold">Total Raw Material Cost:</td>
+          <td class="fw-bold fs-6 text-primary">{{ run.total_material_cost|currency }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+
+<!-- Detailed Cost Breakdown Card -->
+<div class="row g-4">
+  <div class="col-lg-6">
+    <div class="card-modern p-4">
+      <h6 class="fw-bold text-dark mb-3"><i class="bi bi-calculator me-1.5 text-success"></i>Costing Breakdown & Allocation</h6>
+      
+      <div class="d-flex justify-content-between py-2 border-bottom">
+        <span class="text-muted">Total Raw Material Cost:</span>
+        <span class="fw-bold text-dark">{{ run.total_material_cost|currency }}</span>
+      </div>
+      <div class="d-flex justify-content-between py-2 border-bottom">
+        <span class="text-muted">Direct Labour Overheads:</span>
+        <span class="fw-bold text-dark">{{ run.direct_labor_cost|currency }}</span>
+      </div>
+      <div class="d-flex justify-content-between py-2 border-bottom">
+        <span class="text-muted">Gas & Power (Energy Overheads):</span>
+        <span class="fw-bold text-dark">{{ run.power_fuel_cost|currency }}</span>
+      </div>
+      {% if run.other_overheads > 0 %}
+      <div class="d-flex justify-content-between py-2 border-bottom">
+        <span class="text-muted">Other Factory Overheads:</span>
+        <span class="fw-bold text-dark">{{ run.other_overheads|currency }}</span>
+      </div>
+      {% endif %}
+      <div class="d-flex justify-content-between py-2 border-bottom bg-light px-2 mt-2 rounded">
+        <span class="fw-bold text-dark">TOTAL PRODUCTION BATCH COST:</span>
+        <span class="fw-bold text-primary fs-5">{{ run.total_production_cost|currency }}</span>
+      </div>
+
+      <div class="mt-4 p-3 bg-primary-subtle border border-primary-subtle rounded">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <span class="text-primary fw-semibold small">Good Packets Produced:</span>
+          <span class="fw-bold text-primary">{{ run.actual_output_good|format_qty('Packets') }}</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <span class="text-primary fw-semibold small">Unit Manufacturing Cost:</span>
+          <span class="fw-bold text-dark fs-5">{{ run.cost_per_packet|currency }} / packet</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center">
+          <span class="text-primary fw-semibold small">Wholesale Selling Price:</span>
+          <span class="fw-bold text-dark fs-6">{{ run.selling_price_at_run|currency }} / packet</span>
+        </div>
+        <hr class="my-2 border-primary-subtle">
+        <div class="d-flex justify-content-between align-items-center">
+          <span class="text-success fw-bold small">Gross Margin per Packet:</span>
+          <span class="fw-bold text-success fs-5">{{ run.gross_margin_per_packet|currency }} ({{ run.gross_margin_pct }}%)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card-modern p-4">
+      <h6 class="fw-bold text-dark mb-3"><i class="bi bi-info-circle me-1.5 text-info"></i>Costing Methodology Explained</h6>
+      <p class="text-muted small" style="line-height: 1.6;">
+        SnackFlow utilizes <b>Batch Absorption Costing</b> aligned with Indian packaged food manufacturing standards.
+      </p>
+      <ul class="text-muted small ps-3 mb-3" style="line-height: 1.6;">
+        <li><b>Direct Materials:</b> Value of actual consumed ingredients (flour, oil, spice mix) plus utilized packaging pouches and cartons.</li>
+        <li><b>Scrap & Damaged Packaging:</b> Damaged pouches (6 pcs in benchmark) are recognized in the batch cost and deducted from packaging inventory via <code>MATERIAL_WASTAGE</code>.</li>
+        <li><b>Direct Conversion Cost:</b> Includes direct labour allocated to frying and pouch packaging, plus dedicated LPG gas and electricity utility expenses.</li>
+        <li><b>Good Output Allocation:</b> Total accumulated batch cost is divided solely by <b>passed good packets</b> (188 units) to compute the true net cost per marketable packet (₹29.79), ensuring accurate wholesale gross margins.</li>
+      </ul>
+      <div class="alert alert-light border small text-muted mb-0">
+        <b>Notes:</b> {{ run.notes or 'No additional batch notes recorded.' }}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

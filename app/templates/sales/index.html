@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% block title %}Sales Orders - SnackFlow{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 gap-2">
+  <div>
+    <h3 class="fw-bold text-dark mb-1">Customer Sales Orders</h3>
+    <p class="text-muted small mb-0">Manage customer booking, stock availability verification, shortage handling, and order lifecycle</p>
+  </div>
+  {% if current_user.has_role(Role.SALESMAN, Role.FACTORY_ADMIN, Role.OWNER) %}
+  <a href="{{ url_for('sales.create') }}" class="btn btn-primary-custom">
+    <i class="bi bi-cart-plus me-1"></i>New Customer Order
+  </a>
+  {% endif %}
+</div>
+
+<!-- Status Filters -->
+<div class="card-modern p-2.5 mb-4 d-flex flex-wrap gap-2 align-items-center">
+  <span class="small fw-bold text-muted ps-2">Filter by Status:</span>
+  <a href="{{ url_for('sales.index') }}" class="btn btn-sm {% if not current_status %}btn-primary{% else %}btn-light border{% endif %}">All</a>
+  {% for st in statuses %}
+  <a href="{{ url_for('sales.index', status=st) }}" class="btn btn-sm {% if current_status == st %}btn-primary{% else %}btn-light border{% endif %}">
+    {{ st }}
+  </a>
+  {% endfor %}
+</div>
+
+<div class="card-modern overflow-hidden">
+  <div class="table-responsive">
+    <table class="table table-modern">
+      <thead>
+        <tr>
+          <th>Order Number</th>
+          <th>Order Date</th>
+          <th>Customer</th>
+          <th>State & Code</th>
+          <th>Sales Rep</th>
+          <th>Taxable Value</th>
+          <th>Total (Inc. GST)</th>
+          <th>Status</th>
+          <th>Shortage Check</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for o in orders %}
+        <tr>
+          <td class="fw-bold font-monospace text-primary">{{ o.order_number }}</td>
+          <td>{{ o.order_date|date_format }}</td>
+          <td>
+            <div class="fw-semibold text-dark">{{ o.customer.name }}</div>
+            <small class="text-muted">{{ o.customer.customer_type }}</small>
+          </td>
+          <td>
+            <span class="badge bg-light text-dark border">{{ o.customer.state }} ({{ o.customer.state_code }})</span>
+            {% if o.customer.state == 'Tamil Nadu' %}
+              <small class="text-success d-block fw-semibold" style="font-size: 0.65rem;">Intra (CGST+SGST)</small>
+            {% else %}
+              <small class="text-warning d-block fw-semibold" style="font-size: 0.65rem;">Inter (IGST)</small>
+            {% endif %}
+          </td>
+          <td class="small">{{ o.salesman.full_name }}</td>
+          <td>{{ o.total_taxable_amount|currency }}</td>
+          <td class="fw-bold fs-6 text-dark">{{ o.total_amount|currency }}</td>
+          <td>
+            <span class="badge-status badge-{{ o.status|lower }}">{{ o.status }}</span>
+          </td>
+          <td>
+            {% if o.has_shortage %}
+              <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                <i class="bi bi-exclamation-octagon me-1"></i>Shortage: {{ o.total_shortage_units|format_qty }}
+              </span>
+            {% else %}
+              <span class="badge bg-success-subtle text-success border border-success-subtle">
+                <i class="bi bi-check2 me-1"></i>Sufficient
+              </span>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            <a href="{{ url_for('sales.view', id=o.id) }}" class="btn btn-sm btn-outline-primary py-0.5 px-2">
+              View &rarr;
+            </a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="10" class="text-center py-5 text-muted small">No sales orders found matching criteria.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

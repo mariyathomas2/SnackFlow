@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block title %}Production & Variance Report - SnackFlow{% endblock %}
+
+{% block content %}
+<div class="mb-4 d-flex flex-wrap align-items-center justify-content-between gap-2">
+  <div>
+    <a href="{{ url_for('reports.index') }}" class="btn btn-sm btn-link text-decoration-none p-0 text-muted">&larr; Back to Reports</a>
+    <h3 class="fw-bold text-dark mt-2 mb-1">Production Variance & Yield Audit</h3>
+    <p class="text-muted small mb-0">Audit planned vs actual batch output, packaging scrap, and unit manufacturing costs</p>
+  </div>
+  <a href="{{ url_for('reports.production_variance', export='csv') }}" class="btn btn-success fw-semibold">
+    <i class="bi bi-file-earmark-excel me-1"></i>Download CSV
+  </a>
+</div>
+
+<div class="card-modern overflow-hidden">
+  <div class="table-responsive">
+    <table class="table table-modern">
+      <thead>
+        <tr>
+          <th>Batch #</th>
+          <th>Run Date</th>
+          <th>Product</th>
+          <th>Planned Qty</th>
+          <th>Actual Good</th>
+          <th>Damaged Pouches</th>
+          <th>Yield Variance</th>
+          <th>Material Cost</th>
+          <th>Total Cost</th>
+          <th>Cost / Good Pkt</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in runs %}
+        <tr>
+          <td class="fw-bold font-monospace text-primary">{{ r.batch_number }}</td>
+          <td>{{ r.run_date|date_format }}</td>
+          <td>{{ r.product.name }}</td>
+          <td>{{ r.planned_quantity|format_qty }}</td>
+          <td class="fw-bold text-success">{{ r.actual_output_good|format_qty }}</td>
+          <td class="text-danger fw-semibold">{{ r.damaged_units|format_qty }}</td>
+          <td>
+            <span class="badge {% if r.yield_variance_pct < -2.0 %}bg-danger{% else %}bg-success{% endif %}">
+              {{ r.yield_variance_pct }}%
+            </span>
+          </td>
+          <td>{{ r.total_material_cost|currency }}</td>
+          <td class="fw-bold text-dark">{{ r.total_production_cost|currency }}</td>
+          <td class="fw-bold text-primary">{{ r.cost_per_packet|currency }}</td>
+          <td>
+            <a href="{{ url_for('production.view', id=r.id) }}" class="btn btn-sm btn-outline-primary py-0.5 px-2">Inspect</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

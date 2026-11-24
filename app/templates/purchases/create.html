@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+{% block title %}Receive Purchase - SnackFlow{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <a href="{{ url_for('purchases.index') }}" class="btn btn-sm btn-link text-decoration-none p-0 text-muted">&larr; Back to Purchases</a>
+  <h3 class="fw-bold text-dark mt-2 mb-1">Create Purchase Record & Receive Stock</h3>
+  <p class="text-muted small mb-0">Record procurement invoice from supplier. Items will be automatically credited to the raw materials inventory ledger.</p>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-9">
+    <div class="card-modern p-4">
+      <form method="POST" action="{{ url_for('purchases.create') }}" id="purchaseForm">
+        <div class="row g-3 mb-4">
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold">Select Supplier</label>
+            <select name="supplier_id" class="form-select" required>
+              {% for s in suppliers %}
+              <option value="{{ s.id }}">{{ s.name }} ({{ s.state }}) - GSTIN: {{ s.gst_details or 'Unreg' }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold">Purchase Date</label>
+            <input type="date" name="purchase_date" class="form-control" value="{{ today.strftime('%Y-%m-%d') }}" required>
+          </div>
+        </div>
+
+        <h6 class="fw-bold text-dark mb-3 border-bottom pb-2">Material Items Inward</h6>
+        
+        <div id="itemsContainer">
+          <div class="row g-2 align-items-center mb-3 item-row">
+            <div class="col-md-5">
+              <label class="form-label small text-muted mb-1">Raw Material</label>
+              <select name="raw_material_id[]" class="form-select material-select" onchange="updateDefaultCost(this)" required>
+                <option value="">Select Material</option>
+                {% for rm in raw_materials %}
+                <option value="{{ rm.id }}" data-cost="{{ rm.cost }}" data-unit="{{ rm.unit }}">{{ rm.name }} ({{ rm.unit }}) - Code: {{ rm.code }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label small text-muted mb-1">Quantity</label>
+              <input type="number" step="0.0001" name="quantity[]" class="form-control qty-input" placeholder="0.00" oninput="calculateTotals()" required>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label small text-muted mb-1">Unit Cost (₹)</label>
+              <input type="number" step="0.01" name="unit_cost[]" class="form-control cost-input" placeholder="0.00" oninput="calculateTotals()" required>
+            </div>
+            <div class="col-md-1 d-flex align-items-end pt-4">
+              <button type="button" class="btn btn-sm btn-outline-danger w-100" onclick="removeRow(this)"><i class="bi bi-trash"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <button type="button" class="btn btn-sm btn-outline-secondary mb-4" onclick="addRow()">
+          <i class="bi bi-plus-circle me-1"></i>Add Another Material Line
+        </button>
+
+        <div class="card p-3 bg-light border mb-4">
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="fw-bold text-dark">Total Estimated Inward Value:</span>
+            <span class="fs-4 fw-bold text-primary" id="grandTotalDisplay">₹0.00</span>
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label small fw-semibold">Purchase Notes / Vendor Invoice Number</label>
+          <input type="text" name="notes" class="form-control" placeholder="e.g. Invoice #AP-2026-981 / Received in good condition">
+        </div>
+
+        <div class="d-flex justify-content-end gap-2">
+          <a href="{{ url_for('purchases.index') }}" class="btn btn-light border">Cancel</a>
+          <button type="submit" class="btn btn-primary-custom" data-confirm="Receive materials into inventory ledger?">
+            Receive Materials into Stock
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  function updateDefaultCost(selectEl) {
+    const selectedOption = selectEl.options[selectEl.selectedIndex];
+    const cost = selectedOption.getAttribute('data-cost');
+    const row = selectEl.closest('.item-row');
+    const costInput = row.querySelector('.cost-input');
+    if (cost && (!costInput.value || costInput.value == '0.00')) {
+      costInput.value = cost;
+    }
+    calculateTotals();
+  }
+
+  function addRow() {
+    const container = document.getElementById('itemsContainer');
+    const firstRow = container.querySelector('.item-row');
+    const newRow = firstRow.cloneNode(true);
+    newRow.querySelectorAll('input').forEach(input => input.value = '');
+    newRow.querySelector('select').selectedIndex = 0;
+    container.appendChild(newRow);
+  }
+
+  function removeRow(btn) {
+    const rows = document.querySelectorAll('.item-row');
+    if (rows.length > 1) {
+      btn.closest('.item-row').remove();
+      calculateTotals();
+    } else {
+      alert("At least one material line is required.");
+    }
+  }
+
+  function calculateTotals() {
+    let grandTotal = 0;
+    document.querySelectorAll('.item-row').forEach(row => {
+      const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
+      const cost = parseFloat(row.querySelector('.cost-input').value) || 0;
+      grandTotal += (qty * cost);
+    });
+    document.getElementById('grandTotalDisplay').innerText = '₹' + grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+</script>
+{% endblock %}

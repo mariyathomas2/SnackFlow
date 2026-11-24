@@ -1,0 +1,198 @@
+{% extends 'base.html' %}
+{% block title %}Factory Admin Dashboard - SnackFlow{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 gap-2">
+  <div>
+    <h3 class="fw-bold text-dark mb-1">Factory Administrator Control Center</h3>
+    <p class="text-muted small mb-0">Verify orders against live stock, handle shortages, generate GST tax invoices, and authorize dispatches</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('purchases.create') }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-box-arrow-in-down me-1"></i>Receive Purchase</a>
+    <a href="{{ url_for('dispatch.index') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-truck me-1"></i>Dispatch Queue</a>
+    <a href="{{ url_for('invoices.index') }}" class="btn btn-sm btn-primary-custom"><i class="bi bi-receipt me-1"></i>All Invoices</a>
+  </div>
+</div>
+
+<!-- Admin Stat Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-xl-3 col-md-6">
+    <div class="card-stat">
+      <div class="stat-label">Pending Order Verification</div>
+      <div class="stat-value text-warning">{{ pending_orders|length }}</div>
+      <div class="stat-subtext">Orders awaiting stock check</div>
+      <div class="stat-icon-bg bg-warning-subtle text-warning">
+        <i class="bi bi-clock"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6">
+    <div class="card-stat">
+      <div class="stat-label">Ready for Invoicing / Dispatch</div>
+      <div class="stat-value text-primary">{{ approved_orders|length }}</div>
+      <div class="stat-subtext">Approved and allocated</div>
+      <div class="stat-icon-bg bg-primary-subtle text-primary">
+        <i class="bi bi-check-circle"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6">
+    <div class="card-stat">
+      <div class="stat-label">Low Raw-Material Alerts</div>
+      <div class="stat-value {% if low_stock_count > 0 %}text-danger{% else %}text-success{% endif %}">{{ low_stock_count }}</div>
+      <div class="stat-subtext">Items below safety threshold</div>
+      <div class="stat-icon-bg bg-danger-subtle text-danger">
+        <i class="bi bi-exclamation-triangle"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6">
+    <div class="card-stat">
+      <div class="stat-label">Dispatched Orders</div>
+      <div class="stat-value text-success">{{ ready_for_dispatch|length }}</div>
+      <div class="stat-subtext">In transit / delivered</div>
+      <div class="stat-icon-bg bg-success-subtle text-success">
+        <i class="bi bi-truck"></i>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Pending Orders Queue with Shortage Detection -->
+<div class="card-modern mb-4 overflow-hidden">
+  <div class="p-3 border-bottom d-flex align-items-center justify-content-between bg-light">
+    <div>
+      <h6 class="fw-bold text-dark mb-0"><i class="bi bi-inbox-fill me-1.5 text-warning"></i>Orders Pending Factory Verification & Approval</h6>
+      <small class="text-muted">Orders must be verified against current inventory before approval</small>
+    </div>
+    <span class="badge bg-warning text-dark">{{ pending_orders|length }} Pending Action</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-modern">
+      <thead>
+        <tr>
+          <th>Order #</th>
+          <th>Customer & Destination</th>
+          <th>Salesman</th>
+          <th>Date</th>
+          <th>Items Ordered</th>
+          <th>Order Value</th>
+          <th>Stock Shortage Check</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for o in pending_orders %}
+        <tr>
+          <td class="fw-bold text-primary">{{ o.order_number }}</td>
+          <td>
+            <div class="fw-semibold text-dark">{{ o.customer.name }}</div>
+            <small class="text-muted">{{ o.customer.state }} ({{ o.customer.state_code }})</small>
+          </td>
+          <td>{{ o.salesman.full_name }}</td>
+          <td>{{ o.order_date|date_format }}</td>
+          <td>
+            {% for item in o.items %}
+            <div class="small fw-medium">{{ item.product.name }}: <b>{{ item.ordered_quantity|format_qty }}</b></div>
+            {% endfor %}
+          </td>
+          <td class="fw-bold">{{ o.total_amount|currency }}</td>
+          <td>
+            {% if o.has_shortage %}
+              <div class="p-1.5 px-2 bg-danger-subtle text-danger border border-danger-subtle rounded small fw-semibold">
+                <i class="bi bi-exclamation-octagon-fill me-1"></i>Shortage: {{ o.total_shortage_units|format_qty }}
+              </div>
+            {% else %}
+              <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                <i class="bi bi-check2 me-1"></i>Stock Available
+              </span>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            <a href="{{ url_for('sales.view', id=o.id) }}" class="btn btn-sm btn-primary fw-semibold px-2.5 py-1">
+              Verify & Approve &rarr;
+            </a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8" class="text-center py-4 text-muted small">
+            <i class="bi bi-check-circle fs-4 text-success d-block mb-1"></i>
+            All customer orders are fully verified and approved! No pending orders.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Finished Goods Stock Status -->
+<div class="row g-4">
+  <div class="col-lg-6">
+    <div class="card-modern p-3">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="fw-bold text-dark mb-0"><i class="bi bi-box2-heart text-success me-1.5"></i>Finished Goods Stock Level</h6>
+        <a href="{{ url_for('inventory.finished_goods') }}" class="small text-decoration-none">Full Inventory</a>
+      </div>
+      <table class="table table-sm">
+        <thead>
+          <tr class="text-muted small">
+            <th>Product</th>
+            <th>SKU</th>
+            <th>Unit Price</th>
+            <th class="text-end">Available Stock</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for fg in fg_summary %}
+          <tr>
+            <td class="fw-semibold text-dark">{{ fg.name }}</td>
+            <td class="font-monospace text-muted">{{ fg.sku }}</td>
+            <td>{{ fg.selling_price|currency }}</td>
+            <td class="text-end fw-bold fs-6 text-primary">{{ fg.current_stock|format_qty(fg.unit) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card-modern p-3">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="fw-bold text-dark mb-0"><i class="bi bi-receipt text-primary me-1.5"></i>Recent Tax Invoices</h6>
+        <a href="{{ url_for('invoices.index') }}" class="small text-decoration-none">All Invoices</a>
+      </div>
+      <table class="table table-sm">
+        <thead>
+          <tr class="text-muted small">
+            <th>Invoice #</th>
+            <th>Customer</th>
+            <th>Amount</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for inv in recent_invoices %}
+          <tr>
+            <td><a href="{{ url_for('invoices.view', id=inv.id) }}" class="fw-semibold text-primary text-decoration-none">{{ inv.invoice_number }}</a></td>
+            <td>{{ inv.customer_name }}</td>
+            <td class="fw-semibold">{{ inv.total_amount|currency }}</td>
+            <td><span class="badge-status badge-{{ inv.status|lower }}">{{ inv.status }}</span></td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="4" class="text-center py-3 text-muted small">No invoices generated yet.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

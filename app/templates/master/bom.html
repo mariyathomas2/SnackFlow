@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+{% block title %}Bill of Materials (BOM) - SnackFlow{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 gap-2">
+  <div>
+    <h3 class="fw-bold text-dark mb-1">Bill of Materials (BOM) Recipes</h3>
+    <p class="text-muted small mb-0">Standard material consumption formulas for scalable manufacturing batch sizes</p>
+  </div>
+  {% if current_user.has_role(Role.FACTORY_ADMIN, Role.OWNER, Role.PRODUCTION_SUPERVISOR) %}
+  <button class="btn btn-primary-custom" data-bs-toggle="modal" data-bs-target="#newBOMModal">
+    <i class="bi bi-plus-lg me-1"></i>Create New BOM
+  </button>
+  {% endif %}
+</div>
+
+{% for b in boms %}
+<div class="card-modern mb-4 overflow-hidden">
+  <div class="p-3 border-bottom d-flex flex-wrap align-items-center justify-content-between bg-light gap-2">
+    <div>
+      <div class="d-flex align-items-center gap-2">
+        <h5 class="fw-bold text-dark mb-0">{{ b.name }}</h5>
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Product: {{ b.product.name }}</span>
+        <span class="badge bg-success-subtle text-success">Standard Batch Size: {{ b.batch_size|format_qty(b.unit) }}</span>
+      </div>
+      {% if b.description %}
+      <small class="text-muted mt-1 d-block">{{ b.description }}</small>
+      {% endif %}
+    </div>
+    <div class="text-muted small">
+      Created: {{ b.created_at|date_format }}
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-modern mb-0">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Raw Material Item</th>
+          <th>Standard Quantity per Batch ({{ b.batch_size }} {{ b.unit }})</th>
+          <th>Standard Unit Cost</th>
+          <th>Estimated Item Cost per Batch</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in b.items %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td>
+            <div class="fw-semibold text-dark">{{ item.raw_material.name }}</div>
+            <small class="font-monospace text-muted">{{ item.raw_material.code }}</small>
+          </td>
+          <td class="fw-bold text-primary fs-6">{{ item.standard_quantity|format_qty(item.unit) }}</td>
+          <td>{{ item.raw_material.cost|currency }} / {{ item.unit }}</td>
+          <td class="fw-semibold">{{ (item.standard_quantity * item.raw_material.cost)|currency }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card-modern text-center py-5">
+  <div class="empty-state">
+    <i class="bi bi-diagram-3 empty-state-icon"></i>
+    <div class="empty-state-title">No BOM Recipes Defined</div>
+    <div class="empty-state-text">Create a standard Bill of Materials to automate production requirements and variance tracking.</div>
+    <button class="btn btn-primary-custom" data-bs-toggle="modal" data-bs-target="#newBOMModal">Create Benchmark BOM</button>
+  </div>
+</div>
+{% endfor %}
+
+<!-- New BOM Modal -->
+<div class="modal fade" id="newBOMModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('master.bom') }}">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold">Create New Bill of Materials (BOM)</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-2 mb-3">
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Target Product</label>
+              <select name="product_id" class="form-select" required>
+                {% for prod in products %}
+                <option value="{{ prod.id }}">{{ prod.name }} ({{ prod.sku }})</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">BOM Recipe Name</label>
+              <input type="text" name="name" class="form-control" placeholder="e.g. Standard Murukku Batch Recipe" required>
+            </div>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Standard Batch Size Output</label>
+              <input type="number" step="0.01" name="batch_size" class="form-control" value="200" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Output Unit</label>
+              <input type="text" name="unit" class="form-control" value="Packets" required>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Description / Notes</label>
+            <textarea name="description" class="form-control" rows="2" placeholder="Recipe instructions or notes"></textarea>
+          </div>
+
+          <h6 class="fw-bold text-dark mt-4 mb-2">Required Ingredients & Packaging Items</h6>
+          <div id="bomItemsContainer">
+            {% for rm in raw_materials %}
+            <div class="row g-2 align-items-center mb-2 pb-2 border-bottom">
+              <div class="col-5">
+                <input type="hidden" name="raw_material_id[]" value="{{ rm.id }}">
+                <span class="fw-semibold small text-dark">{{ rm.name }}</span>
+                <small class="text-muted font-monospace d-block">({{ rm.code }})</small>
+              </div>
+              <div class="col-4">
+                <div class="input-group input-group-sm">
+                  <input type="number" step="0.0001" name="quantity[]" class="form-control" placeholder="Standard Qty" value="0">
+                  <span class="input-group-text">{{ rm.unit }}</span>
+                </div>
+              </div>
+              <div class="col-3">
+                <input type="hidden" name="item_unit[]" value="{{ rm.unit }}">
+                <small class="text-muted">Standard rate: {{ rm.cost|currency }}/{{ rm.unit }}</small>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-sm btn-primary">Save BOM Recipe</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

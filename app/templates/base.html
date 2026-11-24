@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Dashboard{% endblock %} - SnackFlow ERP</title>
+  
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <!-- Custom Modern UI Styles -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <!-- Chart.js for data visualization -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div id="sidebarBackdrop" class="sidebar-backdrop"></div>
+
+  <div class="app-container">
+    <!-- SIDEBAR -->
+    <aside class="app-sidebar">
+      <div class="sidebar-header">
+        <div class="brand-icon">
+          <i class="bi bi-box-seam-fill"></i>
+        </div>
+        <div>
+          <h1 class="brand-title">SnackFlow</h1>
+          <p class="brand-subtitle">Packaged Food ERP</p>
+        </div>
+      </div>
+
+      <div class="sidebar-menu">
+        <div class="menu-section-label">Core Operations</div>
+        <ul class="nav flex-column">
+          <li class="nav-item">
+            <a href="{{ url_for('dashboard.index') }}" class="nav-link-custom {% if request.endpoint == 'dashboard.index' %}active{% endif %}">
+              <i class="bi bi-grid-1x2-fill"></i>
+              <span>Dashboard</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="{{ url_for('sales.index') }}" class="nav-link-custom {% if 'sales' in request.endpoint %}active{% endif %}">
+              <i class="bi bi-cart3"></i>
+              <span>Sales Orders</span>
+            </a>
+          </li>
+          {% if current_user.has_role(Role.FACTORY_ADMIN, Role.ACCOUNTANT, Role.OWNER) %}
+          <li class="nav-item">
+            <a href="{{ url_for('invoices.index') }}" class="nav-link-custom {% if 'invoices' in request.endpoint %}active{% endif %}">
+              <i class="bi bi-receipt"></i>
+              <span>GST Invoices</span>
+            </a>
+          </li>
+          {% endif %}
+          {% if current_user.has_role(Role.FACTORY_ADMIN, Role.OWNER) %}
+          <li class="nav-item">
+            <a href="{{ url_for('dispatch.index') }}" class="nav-link-custom {% if 'dispatch' in request.endpoint %}active{% endif %}">
+              <i class="bi bi-truck"></i>
+              <span>Dispatch</span>
+            </a>
+          </li>
+          {% endif %}
+          {% if current_user.has_role(Role.FACTORY_ADMIN, Role.ACCOUNTANT, Role.OWNER) %}
+          <li class="nav-item">
+            <a href="{{ url_for('payments.index') }}" class="nav-link-custom {% if 'payments' in request.endpoint and 'receivables' not in request.endpoint %}active{% endif %}">
+              <i class="bi bi-cash-stack"></i>
+              <span>Payments</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="{{ url_for('payments.receivables') }}" class="nav-link-custom {% if 'receivables' in request.endpoint %}active{% endif %}">
+              <i class="bi bi-clock-history"></i>
+              <span>Receivables Ageing</span>
+            </a>
+          </li>
+          {% endif %}
+        </ul>
+
+        {% if current_user.has_role(Role.PRODUCTION_SUPERVISOR, Role.FACTORY_ADMIN, Role.ACCOUNTANT, Role.OWNER) %}
+        <div class="menu-section-label mt-3">Manufacturing</div>
+        <ul class="nav flex-column">
+          <li class="nav-item">
+            <a href="{{ url_for('production.index') }}" class="nav-link-custom {% if 'production' in request.endpoint %}active{% endif %}">
+              <i class="bi bi-gear-wide-connected"></i>
+              <span>Production Runs</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="{{ url_for('purchases.index') }}" class="nav-link-custom {% if 'purchases' in request.endpoint %}active{% endif %}">
+              <i class="bi bi-bag-check"></i>
+              <span>Purchases (PO)</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="{{ url_for('costing.index') }}" class="nav-link-custom {% if 'costing' in request.endpoint %}active{% endif %}">
+              <i class="bi bi-calculator"></i>
+              <span>Costing & Margins</span>
+            </a>
+          </li>
+        </ul>
+        {% endif %}
+
+        <div class="menu-section-label mt-3">Inventory Ledger</div>
+        <ul class="nav flex-column">
+          <li class="nav-item">
+            <a href="{{ url_for('inventory.raw_materials') }}" class="nav-link-custom {% if request.endpoint == 'inventory.raw_materials' %}active{% endif %}">
+              <i class="bi bi-boxes"></i>
+              <span>Raw Materials</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="{{ url_for('inventory.finished_goods') }}" class="nav-link-custom {% if request.endpoint == 'inventory.finished_goods' %}active{% endif %}">
+              <i class="bi bi-box2-heart"></i>
+              <span>Finished Goods</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="{{ url_for('inventory.ledger') }}" class="nav-link-custom {% if request.endpoint == 'inventory.ledger' %}active{% endif %}">
+              <i class="bi bi-journal-text"></i>
+              <span>Stock Ledger History</span>
+            </a>
+          </li>
+        </ul>
+
+        {% if current_user.has_role(Role.FACTORY_ADMIN, Role.PRODUCTION_SUPERVISOR, Role.OWNER) %}
+        <div class="menu-section-label mt-3">Master Data</div>
+        <ul class="nav flex-column">
+          <li class="nav-item">
+            <a href="{{ url_for('master.products') }}" class="nav-link-custom {% if request.endpoint == 'master.products' %}active{% endif %}">
+              <i class="bi bi-tag"></i>
+              <span>Products</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="{{ url_for('master.bom') }}" class="nav-link-custom {% if request.endpoint == 'master.bom' %}active{% endif %}">
+              <i class="bi bi-diagram-3"></i>
+              <span>Bill of Materials (BOM)</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="{{ url_for('master.raw_materials') }}" class="nav-link-custom {% if request.endpoint == 'master.raw_materials' %}active{% endif %}">
+              <i class="bi bi-layers"></i>
+              <span>Raw Materials Master</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="{{ url_for('master.customers') }}" class="nav-link-custom {% if request.endpoint == 'master.customers' %}active{% endif %}">
+              <i class="bi bi-people"></i>
+              <span>Customers</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="{{ url_for('master.suppliers') }}" class="nav-link-custom {% if request.endpoint == 'master.suppliers' %}active{% endif %}">
+              <i class="bi bi-building"></i>
+              <span>Suppliers</span>
+            </a>
+          </li>
+        </ul>
+        {% endif %}
+
+        {% if current_user.has_role(Role.ACCOUNTANT, Role.OWNER, Role.FACTORY_ADMIN) %}
+        <div class="menu-section-label mt-3">Audit & Reports</div>
+        <ul class="nav flex-column">
+          <li class="nav-item">
+            <a href="{{ url_for('reports.index') }}" class="nav-link-custom {% if 'reports' in request.endpoint %}active{% endif %}">
+              <i class="bi bi-file-earmark-bar-graph"></i>
+              <span>Audit Reports & CSV</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="{{ url_for('audit.index') }}" class="nav-link-custom {% if 'audit' in request.endpoint %}active{% endif %}">
+              <i class="bi bi-shield-check"></i>
+              <span>System Audit Log</span>
+            </a>
+          </li>
+        </ul>
+        {% endif %}
+      </div>
+
+      <!-- Sidebar User Badge -->
+      <div class="sidebar-footer">
+        <div class="user-badge-container">
+          <div class="user-avatar-initials">
+            {{ current_user.username[:2].upper() }}
+          </div>
+          <div class="overflow-hidden">
+            <div class="text-white text-truncate fw-semibold" style="font-size: 0.85rem;">{{ current_user.full_name }}</div>
+            <div class="text-truncate" style="font-size: 0.72rem; color: #94A3B8;">{{ current_user.role_display }}</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN APP WRAPPER -->
+    <div class="app-main">
+      <!-- TOPBAR -->
+      <header class="app-topbar">
+        <div class="topbar-left">
+          <button class="btn btn-sm btn-outline-secondary d-lg-none" id="sidebarToggle" type="button">
+            <i class="bi bi-list fs-5"></i>
+          </button>
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-light text-dark border px-2 py-1.5" style="font-size: 0.78rem;">
+              <i class="bi bi-geo-alt-fill text-danger me-1"></i>{{ FACTORY_NAME }} (State: {{ FACTORY_STATE }} - 33)
+            </span>
+          </div>
+        </div>
+
+        <div class="topbar-right">
+          <!-- Quick Demo Role Switcher -->
+          <div class="dropdown">
+            <button class="btn btn-sm btn-outline-primary dropdown-toggle d-flex align-items-center gap-1.5 fw-semibold" type="button" data-bs-toggle="dropdown">
+              <i class="bi bi-person-badge"></i>
+              <span>Role: {{ current_user.role }}</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+              <li><h6 class="dropdown-header text-uppercase" style="font-size: 0.7rem;">Demo Quick Role Switch</h6></li>
+              <li><a class="dropdown-item py-1.5" href="{{ url_for('auth.switch_role', role=Role.OWNER) }}"><i class="bi bi-star-fill text-warning me-2"></i>OWNER (Executive View)</a></li>
+              <li><a class="dropdown-item py-1.5" href="{{ url_for('auth.switch_role', role=Role.FACTORY_ADMIN) }}"><i class="bi bi-building-gear text-primary me-2"></i>FACTORY ADMIN (Approvals & Invoicing)</a></li>
+              <li><a class="dropdown-item py-1.5" href="{{ url_for('auth.switch_role', role=Role.SALESMAN) }}"><i class="bi bi-cart-plus text-success me-2"></i>SALESMAN (Orders Creation)</a></li>
+              <li><a class="dropdown-item py-1.5" href="{{ url_for('auth.switch_role', role=Role.PRODUCTION_SUPERVISOR) }}"><i class="bi bi-gear-fill text-info me-2"></i>PRODUCTION SUPERVISOR (Batches & BOM)</a></li>
+              <li><a class="dropdown-item py-1.5" href="{{ url_for('auth.switch_role', role=Role.ACCOUNTANT) }}"><i class="bi bi-file-earmark-spreadsheet text-secondary me-2"></i>ACCOUNTANT (GST & Receivables)</a></li>
+            </ul>
+          </div>
+
+          <!-- User Menu -->
+          <div class="dropdown">
+            <button class="btn btn-sm btn-light border d-flex align-items-center gap-2 px-2.5 py-1" type="button" data-bs-toggle="dropdown">
+              <i class="bi bi-person-circle fs-6 text-muted"></i>
+              <span class="d-none d-md-inline fw-medium text-dark" style="font-size: 0.85rem;">{{ current_user.username }}</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+              <li><span class="dropdown-item-text text-muted" style="font-size: 0.75rem;">Signed in as <b>{{ current_user.username }}</b></span></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item text-danger py-1.5" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right me-2"></i>Sign Out</a></li>
+            </ul>
+          </div>
+        </div>
+      </header>
+
+      <!-- FLASH MESSAGES -->
+      <div class="px-4 pt-3">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show shadow-sm border-0 d-flex align-items-center gap-2" role="alert">
+                {% if category == 'success' %}
+                  <i class="bi bi-check-circle-fill text-success fs-5"></i>
+                {% elif category == 'danger' or category == 'error' %}
+                  <i class="bi bi-exclamation-octagon-fill text-danger fs-5"></i>
+                {% elif category == 'warning' %}
+                  <i class="bi bi-exclamation-triangle-fill text-warning fs-5"></i>
+                {% else %}
+                  <i class="bi bi-info-circle-fill text-primary fs-5"></i>
+                {% endif %}
+                <div class="flex-grow-1" style="font-size: 0.88rem;">{{ message }}</div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+      </div>
+
+      <!-- MAIN PAGE CONTENT -->
+      <main class="app-content">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+
+  <!-- Bootstrap 5 Bundle JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Main Custom JS -->
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,236 @@
+{% extends 'base.html' %}
+{% block title %}Owner Executive Dashboard{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 gap-2">
+  <div>
+    <h3 class="fw-bold text-dark mb-1">Executive Overview</h3>
+    <p class="text-muted small mb-0">High-level sales, inventory valuation, manufacturing output, and cash flow</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('reports.sales_register') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-file-earmark-bar-graph me-1"></i>Sales Register</a>
+    <a href="{{ url_for('reports.gst_summary') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pie-chart me-1"></i>GST Summary</a>
+    <a href="{{ url_for('sales.create') }}" class="btn btn-sm btn-primary-custom"><i class="bi bi-plus-lg me-1"></i>New Order</a>
+  </div>
+</div>
+
+<!-- KPI Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-xl-3 col-md-6">
+    <div class="card-stat">
+      <div class="stat-label">Total Invoiced Sales</div>
+      <div class="stat-value text-primary">{{ total_sales|currency }}</div>
+      <div class="stat-subtext text-success"><i class="bi bi-arrow-up-right me-1"></i>Real billed revenue</div>
+      <div class="stat-icon-bg bg-primary-subtle text-primary">
+        <i class="bi bi-currency-rupee"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6">
+    <div class="card-stat">
+      <div class="stat-label">Collections Received</div>
+      <div class="stat-value text-success">{{ total_collected|currency }}</div>
+      <div class="stat-subtext">Realized cash in bank</div>
+      <div class="stat-icon-bg bg-success-subtle text-success">
+        <i class="bi bi-wallet2"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6">
+    <div class="card-stat">
+      <div class="stat-label">Outstanding Receivables</div>
+      <div class="stat-value text-danger">{{ total_outstanding|currency }}</div>
+      <div class="stat-subtext text-muted">Active client balances</div>
+      <div class="stat-icon-bg bg-danger-subtle text-danger">
+        <i class="bi bi-clock-history"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6">
+    <div class="card-stat">
+      <div class="stat-label">Total Stock Valuation</div>
+      <div class="stat-value text-dark">{{ (rm_stock_val + fg_stock_val)|currency }}</div>
+      <div class="stat-subtext text-muted">RM: {{ rm_stock_val|currency }} | FG: {{ fg_stock_val|currency }}</div>
+      <div class="stat-icon-bg bg-info-subtle text-info">
+        <i class="bi bi-boxes"></i>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Alerts Banner if any -->
+{% if yield_alerts > 0 or consumption_alerts > 0 or low_stock_count > 0 %}
+<div class="alert alert-warning border-0 shadow-sm d-flex align-items-center justify-content-between mb-4 py-2.5">
+  <div class="d-flex align-items-center gap-2">
+    <i class="bi bi-exclamation-triangle-fill fs-5 text-warning"></i>
+    <span class="small fw-medium">
+      Active Operational Alerts: 
+      <b>{{ yield_alerts }}</b> Yield Variance Alert(s), 
+      <b>{{ consumption_alerts }}</b> Consumption Variance Alert(s), 
+      <b>{{ low_stock_count }}</b> Low Raw-Material Stock Item(s).
+    </span>
+  </div>
+  <a href="{{ url_for('production.index') }}" class="btn btn-sm btn-warning fw-semibold" style="font-size: 0.78rem;">Inspect Variances</a>
+</div>
+{% endif %}
+
+<!-- Charts & Highlights -->
+<div class="row g-4 mb-4">
+  <div class="col-lg-7">
+    <div class="card-modern p-3">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <h6 class="fw-bold text-dark mb-0">Production vs Sales Flow</h6>
+        <span class="badge bg-light text-muted border small">Benchmark Live Data</span>
+      </div>
+      <canvas id="overviewChart" height="180"></canvas>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card-modern p-3">
+      <h6 class="fw-bold text-dark mb-3">Inventory Health & Valuations</h6>
+      <div class="mb-3">
+        <div class="d-flex justify-content-between small fw-medium mb-1">
+          <span>Raw Materials Stock</span>
+          <span>{{ rm_stock_val|currency }}</span>
+        </div>
+        <div class="progress" style="height: 8px;">
+          <div class="progress-bar bg-primary" style="width: 45%"></div>
+        </div>
+      </div>
+      <div class="mb-3">
+        <div class="d-flex justify-content-between small fw-medium mb-1">
+          <span>Finished Goods Stock</span>
+          <span>{{ fg_stock_val|currency }}</span>
+        </div>
+        <div class="progress" style="height: 8px;">
+          <div class="progress-bar bg-success" style="width: 55%"></div>
+        </div>
+      </div>
+      <hr>
+      <div class="row text-center g-2 pt-1">
+        <div class="col-6">
+          <div class="p-2 border rounded bg-light">
+            <div class="text-muted" style="font-size: 0.72rem;">TOTAL BATCHES</div>
+            <div class="fw-bold fs-5 text-dark">{{ total_batches }}</div>
+          </div>
+        </div>
+        <div class="col-6">
+          <div class="p-2 border rounded bg-light">
+            <div class="text-muted" style="font-size: 0.72rem;">GOOD PACKETS</div>
+            <div class="fw-bold fs-5 text-dark">{{ total_pkts_produced|format_qty }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Recent Orders & Activity Table -->
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card-modern overflow-hidden">
+      <div class="p-3 border-bottom d-flex align-items-center justify-content-between bg-light">
+        <h6 class="fw-bold text-dark mb-0"><i class="bi bi-cart3 me-1.5 text-primary"></i>Recent Customer Orders</h6>
+        <a href="{{ url_for('sales.index') }}" class="btn btn-sm btn-link text-decoration-none p-0 small">View All Orders &rarr;</a>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-modern">
+          <thead>
+            <tr>
+              <th>Order #</th>
+              <th>Customer</th>
+              <th>Date</th>
+              <th>Amount</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for o in recent_orders %}
+            <tr>
+              <td><a href="{{ url_for('sales.view', id=o.id) }}" class="fw-semibold text-primary text-decoration-none">{{ o.order_number }}</a></td>
+              <td>{{ o.customer.name }} <small class="text-muted d-block">({{ o.customer.state }})</small></td>
+              <td>{{ o.order_date|date_format }}</td>
+              <td class="fw-semibold">{{ o.total_amount|currency }}</td>
+              <td>
+                <span class="badge-status badge-{{ o.status|lower }}">{{ o.status }}</span>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="5" class="text-center py-4 text-muted small">No recent orders recorded.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card-modern overflow-hidden">
+      <div class="p-3 border-bottom d-flex align-items-center justify-content-between bg-light">
+        <h6 class="fw-bold text-dark mb-0"><i class="bi bi-shield-check me-1.5 text-success"></i>Audit Activity Stream</h6>
+        <a href="{{ url_for('audit.index') }}" class="btn btn-sm btn-link text-decoration-none p-0 small">Full Trail &rarr;</a>
+      </div>
+      <div class="p-3" style="max-height: 380px; overflow-y: auto;">
+        {% for log in recent_activity %}
+        <div class="d-flex gap-2.5 mb-3 pb-2 border-bottom">
+          <div class="rounded-circle bg-light border d-flex align-items-center justify-content-center flex-shrink-0" style="width: 32px; height: 32px;">
+            <i class="bi bi-activity text-primary" style="font-size: 0.85rem;"></i>
+          </div>
+          <div class="overflow-hidden flex-grow-1">
+            <div class="d-flex justify-content-between align-items-center">
+              <span class="badge bg-light text-dark border" style="font-size: 0.68rem;">{{ log.action }}</span>
+              <span class="text-muted" style="font-size: 0.7rem;">{{ log.timestamp.strftime('%H:%M') }}</span>
+            </div>
+            <p class="mb-0 text-dark small text-truncate fw-medium mt-1">{{ log.description }}</p>
+            <span class="text-muted" style="font-size: 0.72rem;">By <b>{{ log.username }}</b></span>
+          </div>
+        </div>
+        {% else %}
+        <div class="text-center py-4 text-muted small">No audit logs available.</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const ctx = document.getElementById('overviewChart');
+  if (ctx) {
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['Opening Stock', 'Purchases', 'Production Output', 'Dispatched Orders', 'Remaining Stock'],
+        datasets: [{
+          label: 'Quantity (Units / Pkts)',
+          data: [50, 60, 188, 150, 88],
+          backgroundColor: [
+            '#94A3B8',
+            '#38BDF8',
+            '#10B981',
+            '#6366F1',
+            '#F59E0B'
+          ],
+          borderRadius: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          y: { beginAtZero: true }
+        }
+      }
+    });
+  }
+</script>
+{% endblock %}

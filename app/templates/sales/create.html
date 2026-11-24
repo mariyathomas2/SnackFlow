@@ -1,0 +1,212 @@
+{% extends 'base.html' %}
+{% block title %}Book Sales Order - SnackFlow{% endblock %}
+
+{% block content %}
+<div class="mb-4 d-flex flex-wrap justify-content-between align-items-center gap-2">
+  <div>
+    <a href="{{ url_for('sales.index') }}" class="btn btn-sm btn-link text-decoration-none p-0 text-muted">&larr; Back to Orders</a>
+    <h3 class="fw-bold text-dark mt-2 mb-1">Book Customer Sales Order</h3>
+    <p class="text-muted small mb-0">Select customer, specify order quantities, and submit for factory inventory verification</p>
+  </div>
+  <!-- Benchmark Quick Fill Buttons for Evaluator -->
+  <div class="d-flex gap-2">
+    <button type="button" class="btn btn-sm btn-outline-primary" onclick="loadBenchmarkOrder(1)">
+      <i class="bi bi-lightning-charge me-1"></i>Step 3: Retailer A (150 Pkts - TN)
+    </button>
+    <button type="button" class="btn btn-sm btn-outline-warning" onclick="loadBenchmarkOrder(2)">
+      <i class="bi bi-lightning-charge me-1"></i>Step 5: Distributor B (120 Pkts - KA Shortage)
+    </button>
+  </div>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-9">
+    <div class="card-modern p-4">
+      <form method="POST" action="{{ url_for('sales.create') }}" id="orderForm">
+        <div class="row g-3 mb-4">
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold">Customer / Retailer</label>
+            <select name="customer_id" id="customerSelect" class="form-select" required>
+              <option value="">Select Customer</option>
+              {% for c in customers %}
+              <option value="{{ c.id }}" data-state="{{ c.state }}" data-type="{{ c.customer_type }}" data-gstin="{{ c.gstin or '' }}">
+                {{ c.name }} ({{ c.state }} - {{ c.customer_type }})
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold">Order Date</label>
+            <input type="date" name="order_date" class="form-control" value="{{ today.strftime('%Y-%m-%d') }}" required>
+          </div>
+        </div>
+
+        <div class="alert alert-light border small text-muted d-flex align-items-center gap-2 mb-4 py-2" id="customerMetaBox" style="display: none;">
+          <i class="bi bi-info-circle text-primary"></i>
+          <span id="customerMetaText">Customer details will appear here.</span>
+        </div>
+
+        <h6 class="fw-bold text-dark mb-3 border-bottom pb-2">Order Products & Quantities</h6>
+        
+        <div id="orderItemsContainer">
+          <div class="row g-2 align-items-center mb-3 order-item-row">
+            <div class="col-md-6">
+              <label class="form-label small text-muted mb-1">Select Product</label>
+              <select name="product_id[]" class="form-select product-select" onchange="updateLineCalculation(this)" required>
+                <option value="">Select Product</option>
+                {% for p in products %}
+                <option value="{{ p.id }}" data-price="{{ p.selling_price }}" data-gst="{{ p.gst_rate }}" data-unit="{{ p.unit }}">
+                  {{ p.name }} - ₹{{ p.selling_price }}/{{ p.unit }} (+{{ p.gst_rate }}% GST)
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label small text-muted mb-1">Order Quantity</label>
+              <input type="number" step="1" min="1" name="quantity[]" class="form-control qty-input fw-semibold" placeholder="Qty" value="150" required oninput="calculateOrderTotals()">
+            </div>
+            <div class="col-md-2">
+              <label class="form-label small text-muted mb-1">Line Total (Inc. Tax)</label>
+              <div class="fw-bold text-dark pt-2 line-total-display">₹0.00</div>
+            </div>
+            <div class="col-md-1 d-flex align-items-end pt-4">
+              <button type="button" class="btn btn-sm btn-outline-danger w-100" onclick="removeOrderRow(this)"><i class="bi bi-trash"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <button type="button" class="btn btn-sm btn-outline-secondary mb-4" onclick="addOrderRow()">
+          <i class="bi bi-plus-circle me-1"></i>Add Another Product
+        </button>
+
+        <!-- Financial Summary Box -->
+        <div class="card p-3 bg-light border mb-4">
+          <div class="row text-center g-2">
+            <div class="col-4">
+              <div class="text-muted small">TAXABLE TURNOVER</div>
+              <div class="fs-5 fw-bold text-dark" id="totalTaxableDisplay">₹0.00</div>
+            </div>
+            <div class="col-4">
+              <div class="text-muted small">TOTAL GST (5%)</div>
+              <div class="fs-5 fw-bold text-info" id="totalTaxDisplay">₹0.00</div>
+            </div>
+            <div class="col-4">
+              <div class="text-muted small">GRAND ORDER TOTAL</div>
+              <div class="fs-4 fw-bold text-primary" id="totalAmountDisplay">₹0.00</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label small fw-semibold">Delivery Instructions / Customer Notes</label>
+          <input type="text" name="notes" id="notesInput" class="form-control" placeholder="e.g. Deliver to Madurai central shop / urgent requirement">
+        </div>
+
+        <div class="d-flex justify-content-end gap-2">
+          <a href="{{ url_for('sales.index') }}" class="btn btn-light border">Cancel</a>
+          <button type="submit" class="btn btn-primary-custom">
+            Submit Order for Approval
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  function updateLineCalculation(selectEl) {
+    calculateOrderTotals();
+  }
+
+  function addOrderRow() {
+    const container = document.getElementById('orderItemsContainer');
+    const firstRow = container.querySelector('.order-item-row');
+    const newRow = firstRow.cloneNode(true);
+    newRow.querySelector('select').selectedIndex = 0;
+    newRow.querySelector('.qty-input').value = '100';
+    newRow.querySelector('.line-total-display').innerText = '₹0.00';
+    container.appendChild(newRow);
+  }
+
+  function removeOrderRow(btn) {
+    const rows = document.querySelectorAll('.order-item-row');
+    if (rows.length > 1) {
+      btn.closest('.order-item-row').remove();
+      calculateOrderTotals();
+    } else {
+      alert("At least one product line is required.");
+    }
+  }
+
+  function calculateOrderTotals() {
+    let totalTaxable = 0;
+    let totalTax = 0;
+
+    document.querySelectorAll('.order-item-row').forEach(row => {
+      const select = row.querySelector('.product-select');
+      const opt = select.options[select.selectedIndex];
+      if (opt && opt.value) {
+        const price = parseFloat(opt.getAttribute('data-price')) || 0;
+        const gstRate = parseFloat(opt.getAttribute('data-gst')) || 5;
+        const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
+
+        const taxable = qty * price;
+        const tax = taxable * (gstRate / 100);
+        const lineTotal = taxable + tax;
+
+        row.querySelector('.line-total-display').innerText = '₹' + lineTotal.toFixed(2);
+        totalTaxable += taxable;
+        totalTax += tax;
+      }
+    });
+
+    const grand = totalTaxable + totalTax;
+    document.getElementById('totalTaxableDisplay').innerText = '₹' + totalTaxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    document.getElementById('totalTaxDisplay').innerText = '₹' + totalTax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    document.getElementById('totalAmountDisplay').innerText = '₹' + grand.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  // Evaluator Quick Fill Helpers
+  function loadBenchmarkOrder(step) {
+    const custSelect = document.getElementById('customerSelect');
+    const prodSelect = document.querySelector('.product-select');
+    const qtyInput = document.querySelector('.qty-input');
+    const notesInput = document.getElementById('notesInput');
+
+    // Auto-select Murukku 200g
+    for (let i = 0; i < prodSelect.options.length; i++) {
+      if (prodSelect.options[i].text.includes('Murukku')) {
+        prodSelect.selectedIndex = i;
+        break;
+      }
+    }
+
+    if (step === 1) {
+      // Step 3: Retailer A (150 pkts - Tamil Nadu)
+      for (let i = 0; i < custSelect.options.length; i++) {
+        if (custSelect.options[i].text.includes('Retailer A')) {
+          custSelect.selectedIndex = i;
+          break;
+        }
+      }
+      qtyInput.value = 150;
+      notesInput.value = "Benchmark Step 3: 150 packets for Retailer A in Tamil Nadu";
+    } else if (step === 2) {
+      // Step 5: Distributor B (120 pkts - Karnataka Shortage)
+      for (let i = 0; i < custSelect.options.length; i++) {
+        if (custSelect.options[i].text.includes('Distributor B')) {
+          custSelect.selectedIndex = i;
+          break;
+        }
+      }
+      qtyInput.value = 120;
+      notesInput.value = "Benchmark Step 5: 120 packets for Distributor B in Karnataka (Expected shortage 32 packets)";
+    }
+    calculateOrderTotals();
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    calculateOrderTotals();
+  });
+</script>
+{% endblock %}

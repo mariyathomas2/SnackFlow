@@ -1,0 +1,171 @@
+{% extends 'base.html' %}
+{% block title %}Production Supervisor Dashboard - SnackFlow{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 gap-2">
+  <div>
+    <h3 class="fw-bold text-dark mb-1">Production Supervisor Floor Control</h3>
+    <p class="text-muted small mb-0">Monitor raw-material levels, record batch runs, trace consumption vs BOM, and inspect yield variances</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('master.bom') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-diagram-3 me-1"></i>View BOM</a>
+    <a href="{{ url_for('production.create') }}" class="btn btn-sm btn-primary-custom"><i class="bi bi-play-circle-fill me-1"></i>Record Production Run</a>
+  </div>
+</div>
+
+<!-- Supervisor Stat Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-xl-3 col-md-6">
+    <div class="card-stat">
+      <div class="stat-label">Total Batches Produced</div>
+      <div class="stat-value text-primary">{{ total_batches }}</div>
+      <div class="stat-subtext">Completed runs</div>
+      <div class="stat-icon-bg bg-primary-subtle text-primary">
+        <i class="bi bi-gear-wide-connected"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6">
+    <div class="card-stat">
+      <div class="stat-label">Total Good Output</div>
+      <div class="stat-value text-success">{{ total_output|format_qty('Packets') }}</div>
+      <div class="stat-subtext">Passed quality check</div>
+      <div class="stat-icon-bg bg-success-subtle text-success">
+        <i class="bi bi-check2-circle"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6">
+    <div class="card-stat">
+      <div class="stat-label">Yield Variance Alerts</div>
+      <div class="stat-value {% if yield_alerts_list|length > 0 %}text-danger{% else %}text-success{% endif %}">{{ yield_alerts_list|length }}</div>
+      <div class="stat-subtext">Output lower than standard by > 2%</div>
+      <div class="stat-icon-bg bg-danger-subtle text-danger">
+        <i class="bi bi-graph-down-arrow"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6">
+    <div class="card-stat">
+      <div class="stat-label">Consumption Variance Alerts</div>
+      <div class="stat-value {% if consumption_alerts_list|length > 0 %}text-warning{% else %}text-success{% endif %}">{{ consumption_alerts_list|length }}</div>
+      <div class="stat-subtext">Actual consumption > planned</div>
+      <div class="stat-icon-bg bg-warning-subtle text-warning">
+        <i class="bi bi-exclamation-diamond"></i>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Variance Warning Banners -->
+{% if yield_alerts_list %}
+<div class="alert alert-danger border-0 shadow-sm mb-4">
+  <div class="d-flex align-items-center gap-2 mb-2">
+    <i class="bi bi-exclamation-octagon-fill fs-5 text-danger"></i>
+    <span class="fw-bold">YIELD VARIANCE DETECTED IN PRODUCTION RUN:</span>
+  </div>
+  {% for y in yield_alerts_list %}
+  <div class="small ps-4">
+    Batch <b>{{ y.batch_number }}</b> ({{ y.product.name }}): Planned <b>{{ y.planned_quantity|format_qty }}</b> pkts &rarr; Actual Good Output <b>{{ y.actual_output_good|format_qty }}</b> pkts. 
+    Yield Variance: <b class="text-danger">{{ y.yield_variance_pct }}%</b> (Benchmark flag: -6.00%).
+    <a href="{{ url_for('production.view', id=y.id) }}" class="fw-bold ms-2 text-danger text-decoration-underline">Inspect Batch &rarr;</a>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- Raw Materials Stock Status -->
+<div class="card-modern mb-4 p-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h6 class="fw-bold text-dark mb-0"><i class="bi bi-boxes me-1.5 text-primary"></i>Raw Material Inventory & Reorder Thresholds</h6>
+    <a href="{{ url_for('inventory.raw_materials') }}" class="small text-decoration-none">Full Raw Material Stock &rarr;</a>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-modern">
+      <thead>
+        <tr>
+          <th>Code</th>
+          <th>Raw Material</th>
+          <th>Current Stock (Ledger)</th>
+          <th>Safety Threshold</th>
+          <th>Unit Cost</th>
+          <th>Valuation</th>
+          <th>Stock Health</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rm in raw_summary %}
+        <tr>
+          <td class="font-monospace text-muted">{{ rm.code }}</td>
+          <td class="fw-semibold text-dark">{{ rm.name }}</td>
+          <td class="fw-bold fs-6 text-primary">{{ rm.current_stock|format_qty(rm.unit) }}</td>
+          <td>{{ rm.threshold|format_qty(rm.unit) }}</td>
+          <td>{{ rm.cost|currency }}</td>
+          <td class="fw-semibold">{{ rm.stock_value|currency }}</td>
+          <td>
+            {% if rm.is_low_stock %}
+              <span class="badge bg-danger text-white"><i class="bi bi-exclamation-triangle-fill me-1"></i>Low Stock</span>
+            {% else %}
+              <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-check2 me-1"></i>Sufficient</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Recent Production Runs -->
+<div class="card-modern overflow-hidden">
+  <div class="p-3 border-bottom d-flex align-items-center justify-content-between bg-light">
+    <h6 class="fw-bold text-dark mb-0"><i class="bi bi-clock-history me-1.5 text-secondary"></i>Recent Manufacturing Batches</h6>
+    <a href="{{ url_for('production.index') }}" class="small text-decoration-none">All Runs &rarr;</a>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-modern">
+      <thead>
+        <tr>
+          <th>Batch #</th>
+          <th>Date</th>
+          <th>Product</th>
+          <th>Planned Qty</th>
+          <th>Actual Good</th>
+          <th>Damaged Pouches</th>
+          <th>Yield Variance</th>
+          <th>Cost / Good Pkt</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in recent_runs %}
+        <tr>
+          <td class="fw-bold text-primary">{{ r.batch_number }}</td>
+          <td>{{ r.run_date|date_format }}</td>
+          <td class="fw-semibold text-dark">{{ r.product.name }}</td>
+          <td>{{ r.planned_quantity|format_qty }}</td>
+          <td class="fw-bold text-success">{{ r.actual_output_good|format_qty }}</td>
+          <td class="text-danger fw-semibold">{{ r.damaged_units|format_qty }}</td>
+          <td>
+            <span class="badge {% if r.yield_variance_pct < -2.0 %}bg-danger{% else %}bg-success{% endif %}">
+              {{ r.yield_variance_pct }}%
+            </span>
+          </td>
+          <td class="fw-bold text-dark">{{ r.cost_per_packet|currency }}</td>
+          <td>
+            <a href="{{ url_for('production.view', id=r.id) }}" class="btn btn-sm btn-outline-secondary py-0.5 px-2">View</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="9" class="text-center py-4 text-muted small">No production runs recorded yet.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

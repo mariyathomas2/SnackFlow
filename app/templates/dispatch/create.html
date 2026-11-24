@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% block title %}Create Dispatch - SnackFlow{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <a href="{{ url_for('dispatch.index') }}" class="btn btn-sm btn-link text-decoration-none p-0 text-muted">&larr; Back to Dispatch Queue</a>
+  <h3 class="fw-bold text-dark mt-2 mb-1">Authorize & Create Dispatch</h3>
+  <p class="text-muted small mb-0">Record logistics details and execute the finished goods stock deduction via the stock ledger.</p>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="card-modern p-4">
+      <div class="alert alert-info border-0 shadow-sm d-flex align-items-center gap-2 mb-4 py-2">
+        <i class="bi bi-info-circle-fill fs-5 text-primary"></i>
+        <div class="small">
+          <b>Stock Deduction Guarantee:</b> Confirming this dispatch will permanently deduct 
+          <b>{{ order.items[0].approved_quantity if order.items else 0 }}</b> finished goods packets from the warehouse stock ledger under reference type <code>SALES_DISPATCH</code>.
+        </div>
+      </div>
+
+      <!-- Order Summary Card -->
+      <div class="p-3 bg-light rounded border mb-4">
+        <div class="row g-2">
+          <div class="col-6">
+            <small class="text-muted d-block">ORDER NUMBER</small>
+            <span class="fw-bold text-primary">{{ order.order_number }}</span>
+          </div>
+          <div class="col-6">
+            <small class="text-muted d-block">CUSTOMER</small>
+            <span class="fw-bold text-dark">{{ order.customer.name }} ({{ order.customer.state }})</span>
+          </div>
+          <div class="col-12 mt-2">
+            <small class="text-muted d-block">ITEMS ALLOCATED FOR SHIPMENT:</small>
+            {% for item in order.items %}
+            <div class="small fw-semibold text-dark">
+              &bull; {{ item.product.name }}: {{ item.approved_quantity|format_qty(item.product.unit) }}
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <form method="POST" action="{{ url_for('dispatch.create', order_id=order.id) }}">
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold">Carrier / Transport Agency</label>
+            <input type="text" name="carrier_name" class="form-control" value="VRL Logistics / Factory Transport" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold">Vehicle Registration Number</label>
+            <input type="text" name="vehicle_number" class="form-control text-uppercase" placeholder="TN-58-AB-9876">
+          </div>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold">Lorry Receipt (LR) / Tracking Number</label>
+            <input type="text" name="tracking_number" class="form-control" placeholder="LR-2026-9912">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold">Dispatch Date</label>
+            <input type="date" name="dispatch_date" class="form-control" value="{{ today.strftime('%Y-%m-%d') }}" required>
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label small fw-semibold">Shipment Remarks</label>
+          <input type="text" name="notes" class="form-control" placeholder="e.g. Dispatched in good condition / 150 packets in cartons">
+        </div>
+
+        <div class="d-flex justify-content-end gap-2">
+          <a href="{{ url_for('dispatch.index') }}" class="btn btn-light border">Cancel</a>
+          <button type="submit" class="btn btn-success fw-semibold" data-confirm="Confirm dispatch? Finished goods will be deducted from inventory ledger.">
+            <i class="bi bi-truck me-1"></i>Confirm & Deduct Stock
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

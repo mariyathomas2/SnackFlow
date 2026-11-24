@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% block title %}Production Runs - SnackFlow{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 gap-2">
+  <div>
+    <h3 class="fw-bold text-dark mb-1">Production Batch Register</h3>
+    <p class="text-muted small mb-0">Track manufacturing runs, BOM consumption variances, packaging damages, and cost per packet</p>
+  </div>
+  {% if current_user.has_role(Role.PRODUCTION_SUPERVISOR, Role.FACTORY_ADMIN, Role.OWNER) %}
+  <a href="{{ url_for('production.create') }}" class="btn btn-primary-custom">
+    <i class="bi bi-play-circle-fill me-1"></i>Record New Production Run
+  </a>
+  {% endif %}
+</div>
+
+<div class="card-modern overflow-hidden">
+  <div class="table-responsive">
+    <table class="table table-modern">
+      <thead>
+        <tr>
+          <th>Batch Number</th>
+          <th>Run Date</th>
+          <th>Product</th>
+          <th>Planned Qty</th>
+          <th>Good Output</th>
+          <th>Damaged Units</th>
+          <th>Yield Variance</th>
+          <th>Total Batch Cost</th>
+          <th>Cost / Good Pkt</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in runs %}
+        <tr>
+          <td class="fw-bold font-monospace text-primary">{{ r.batch_number }}</td>
+          <td>{{ r.run_date|date_format }}</td>
+          <td>
+            <div class="fw-semibold text-dark">{{ r.product.name }}</div>
+            <small class="text-muted font-monospace">{{ r.product.sku }}</small>
+          </td>
+          <td>{{ r.planned_quantity|format_qty }}</td>
+          <td class="fw-bold text-success fs-6">{{ r.actual_output_good|format_qty }}</td>
+          <td class="text-danger fw-semibold">{{ r.damaged_units|format_qty }}</td>
+          <td>
+            {% if r.yield_variance_pct < -2.0 %}
+              <span class="badge bg-danger text-white">
+                <i class="bi bi-exclamation-triangle-fill me-1"></i>{{ r.yield_variance_pct }}%
+              </span>
+            {% elif r.yield_variance_pct > 0.0 %}
+              <span class="badge bg-success-subtle text-success border border-success-subtle">+{{ r.yield_variance_pct }}%</span>
+            {% else %}
+              <span class="badge bg-light text-dark border">{{ r.yield_variance_pct }}%</span>
+            {% endif %}
+          </td>
+          <td class="fw-semibold">{{ r.total_production_cost|currency }}</td>
+          <td class="fw-bold text-dark">{{ r.cost_per_packet|currency }}</td>
+          <td class="text-end">
+            <a href="{{ url_for('production.view', id=r.id) }}" class="btn btn-sm btn-outline-primary py-0.5 px-2">
+              Inspect Batch &rarr;
+            </a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="10" class="text-center py-5 text-muted small">No production runs recorded yet.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

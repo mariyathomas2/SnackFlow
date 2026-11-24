@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block title %}Purchase Procurement Register - SnackFlow{% endblock %}
+
+{% block content %}
+<div class="mb-4 d-flex flex-wrap align-items-center justify-content-between gap-2">
+  <div>
+    <a href="{{ url_for('reports.index') }}" class="btn btn-sm btn-link text-decoration-none p-0 text-muted">&larr; Back to Reports</a>
+    <h3 class="fw-bold text-dark mt-2 mb-1">Purchase Procurement Register</h3>
+    <p class="text-muted small mb-0">Record of raw materials inward and supplier procurement expenses</p>
+  </div>
+  <a href="{{ url_for('reports.purchase_register', export='csv') }}" class="btn btn-success fw-semibold">
+    <i class="bi bi-file-earmark-excel me-1"></i>Download CSV
+  </a>
+</div>
+
+<div class="card-modern overflow-hidden">
+  <div class="table-responsive">
+    <table class="table table-modern">
+      <thead>
+        <tr>
+          <th>PO Number</th>
+          <th>Date</th>
+          <th>Supplier</th>
+          <th>State & GSTIN</th>
+          <th>Total Inward Cost</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for po in orders %}
+        <tr>
+          <td class="fw-bold font-monospace text-primary">{{ po.po_number }}</td>
+          <td>{{ po.purchase_date|date_format }}</td>
+          <td>{{ po.supplier.name }}</td>
+          <td>{{ po.supplier.state }} | <span class="font-monospace text-muted small">{{ po.supplier.gst_details or 'Unreg' }}</span></td>
+          <td class="fw-bold fs-6 text-dark">{{ po.total_amount|currency }}</td>
+          <td><span class="badge bg-success-subtle text-success border border-success-subtle">{{ po.status }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot class="table-light">
+        <tr>
+          <td colspan="4" class="text-end fw-bold">Total Procurement Spend:</td>
+          <td colspan="2" class="fw-bold fs-5 text-primary">{{ total_spend|currency }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+{% endblock %}

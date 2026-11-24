@@ -1,0 +1,152 @@
+{% extends 'base.html' %}
+{% block title %}Salesman Portal - SnackFlow{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 gap-2">
+  <div>
+    <h3 class="fw-bold text-dark mb-1">Sales Representative Portal</h3>
+    <p class="text-muted small mb-0">Book customer orders, verify wholesale rates, and track approval and dispatch status</p>
+  </div>
+  <div>
+    <a href="{{ url_for('sales.create') }}" class="btn btn-primary-custom"><i class="bi bi-cart-plus me-1.5"></i>Create New Customer Order</a>
+  </div>
+</div>
+
+<!-- Salesman Metrics -->
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card-stat">
+      <div class="stat-label">My Total Booked Sales</div>
+      <div class="stat-value text-primary">{{ my_total_sales|currency }}</div>
+      <div class="stat-subtext">{{ my_orders|length }} total orders placed</div>
+      <div class="stat-icon-bg bg-primary-subtle text-primary">
+        <i class="bi bi-cash"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card-stat">
+      <div class="stat-label">Pending Approval</div>
+      <div class="stat-value text-warning">{{ my_pending|length }}</div>
+      <div class="stat-subtext">Awaiting factory admin review</div>
+      <div class="stat-icon-bg bg-warning-subtle text-warning">
+        <i class="bi bi-hourglass-split"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card-stat">
+      <div class="stat-label">Approved & Dispatched</div>
+      <div class="stat-value text-success">{{ my_approved|length }}</div>
+      <div class="stat-subtext">Invoiced or en route to customer</div>
+      <div class="stat-icon-bg bg-success-subtle text-success">
+        <i class="bi bi-check2-circle"></i>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- My Submitted Orders -->
+  <div class="col-lg-8">
+    <div class="card-modern overflow-hidden">
+      <div class="p-3 border-bottom d-flex align-items-center justify-content-between bg-light">
+        <h6 class="fw-bold text-dark mb-0"><i class="bi bi-list-check me-1.5 text-primary"></i>My Submitted Orders</h6>
+        <span class="badge bg-white text-dark border">{{ my_orders|length }} Orders</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-modern">
+          <thead>
+            <tr>
+              <th>Order #</th>
+              <th>Customer</th>
+              <th>Date</th>
+              <th>Taxable</th>
+              <th>Total (Inc. GST)</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for o in my_orders %}
+            <tr>
+              <td class="fw-bold text-primary">{{ o.order_number }}</td>
+              <td>
+                <div class="fw-semibold text-dark">{{ o.customer.name }}</div>
+                <small class="text-muted">{{ o.customer.state }}</small>
+              </td>
+              <td>{{ o.order_date|date_format }}</td>
+              <td>{{ o.total_taxable_amount|currency }}</td>
+              <td class="fw-bold text-dark">{{ o.total_amount|currency }}</td>
+              <td>
+                <span class="badge-status badge-{{ o.status|lower }}">{{ o.status }}</span>
+                {% if o.has_shortage %}
+                  <span class="badge bg-danger-subtle text-danger border ms-1" title="Shortage flagged by factory">Shortage</span>
+                {% endif %}
+              </td>
+              <td>
+                <a href="{{ url_for('sales.view', id=o.id) }}" class="btn btn-sm btn-outline-secondary py-0.5 px-2">View</a>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="7" class="text-center py-5">
+                <div class="empty-state">
+                  <i class="bi bi-cart-x empty-state-icon"></i>
+                  <div class="empty-state-title">No Orders Submitted Yet</div>
+                  <div class="empty-state-text">Start booking orders for retailers and distributors in your territory.</div>
+                  <a href="{{ url_for('sales.create') }}" class="btn btn-sm btn-primary-custom">Book First Order</a>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Product Catalog / Pricing Reference -->
+  <div class="col-lg-4">
+    <div class="card-modern p-3 mb-4">
+      <h6 class="fw-bold text-dark mb-3"><i class="bi bi-tags me-1.5 text-info"></i>Active Products Price List</h6>
+      <div class="list-group list-group-flush">
+        {% for p in products %}
+        <div class="list-group-item px-0 py-2.5 d-flex justify-content-between align-items-center">
+          <div>
+            <div class="fw-semibold text-dark" style="font-size: 0.88rem;">{{ p.name }}</div>
+            <small class="text-muted font-monospace">{{ p.sku }} | HSN: {{ p.hsn }}</small>
+          </div>
+          <div class="text-end">
+            <div class="fw-bold text-primary">{{ p.selling_price|currency }}</div>
+            <small class="badge bg-light text-muted border">+{{ p.gst_rate }}% GST</small>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Assigned Customers Quick View -->
+    <div class="card-modern p-3">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="fw-bold text-dark mb-0"><i class="bi bi-people me-1.5 text-success"></i>Registered Customers</h6>
+        <a href="{{ url_for('master.customers') }}" class="small text-decoration-none">View All</a>
+      </div>
+      <div class="list-group list-group-flush">
+        {% for c in customers[:4] %}
+        <div class="list-group-item px-0 py-2">
+          <div class="fw-semibold text-dark" style="font-size: 0.85rem;">{{ c.name }}</div>
+          <small class="text-muted d-block">{{ c.address }}</small>
+          <div class="d-flex justify-content-between align-items-center mt-1">
+            <span class="badge bg-light text-dark border" style="font-size: 0.68rem;">{{ c.state }} ({{ c.state_code }})</span>
+            <span class="text-muted" style="font-size: 0.72rem;">{{ c.customer_type }}</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

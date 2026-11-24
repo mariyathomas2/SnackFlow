@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block title %}Raw Material Stock Summary - SnackFlow{% endblock %}
+
+{% block content %}
+<div class="mb-4 d-flex flex-wrap align-items-center justify-content-between gap-2">
+  <div>
+    <a href="{{ url_for('reports.index') }}" class="btn btn-sm btn-link text-decoration-none p-0 text-muted">&larr; Back to Reports</a>
+    <h3 class="fw-bold text-dark mt-2 mb-1">Raw Material Stock Audit Summary</h3>
+    <p class="text-muted small mb-0">Closing stock balances calculated from the immutable stock ledger and inventory valuation</p>
+  </div>
+  <a href="{{ url_for('reports.raw_material_stock', export='csv') }}" class="btn btn-success fw-semibold">
+    <i class="bi bi-file-earmark-excel me-1"></i>Download CSV
+  </a>
+</div>
+
+<div class="card-modern overflow-hidden">
+  <div class="table-responsive">
+    <table class="table table-modern">
+      <thead>
+        <tr>
+          <th>Code</th>
+          <th>Raw Material</th>
+          <th>Unit</th>
+          <th>Closing Stock (Ledger)</th>
+          <th>Safety Threshold</th>
+          <th>Unit Cost</th>
+          <th>Total Stock Valuation</th>
+          <th>Audit Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in summary %}
+        <tr>
+          <td class="font-monospace fw-bold text-primary">{{ s.code }}</td>
+          <td class="fw-semibold text-dark">{{ s.name }}</td>
+          <td>{{ s.unit }}</td>
+          <td class="fw-bold fs-6 text-dark">{{ s.current_stock|format_qty(s.unit) }}</td>
+          <td>{{ s.threshold|format_qty(s.unit) }}</td>
+          <td>{{ s.cost|currency }}</td>
+          <td class="fw-bold text-primary">{{ s.stock_value|currency }}</td>
+          <td>
+            {% if s.is_low_stock %}
+              <span class="badge bg-danger">Low Stock Alert</span>
+            {% else %}
+              <span class="badge bg-success-subtle text-success border border-success-subtle">Optimal</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot class="table-light">
+        <tr>
+          <td colspan="6" class="text-end fw-bold">Total Raw Material Inventory Valuation:</td>
+          <td colspan="2" class="fw-bold fs-5 text-primary">{{ total_val|currency }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+{% endblock %}

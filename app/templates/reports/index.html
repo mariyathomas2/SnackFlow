@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+{% block title %}Audit Reports - SnackFlow{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h3 class="fw-bold text-dark mb-1">Financial & Operational Audit Reports</h3>
+  <p class="text-muted small mb-0">Filterable statutory reports, production variance logs, and 1-click CSV exports for auditors and management</p>
+</div>
+
+<div class="row g-4">
+  <!-- Sales & Revenue -->
+  <div class="col-md-6 col-lg-4">
+    <div class="card-modern p-4 h-100 d-flex flex-column justify-content-between">
+      <div>
+        <div class="stat-icon-bg bg-primary-subtle text-primary mb-3">
+          <i class="bi bi-file-earmark-bar-graph"></i>
+        </div>
+        <h5 class="fw-bold text-dark mb-1">Monthly Sales Register</h5>
+        <p class="text-muted small">Comprehensive invoice register with taxable value, CGST, SGST, IGST, and payment status.</p>
+      </div>
+      <div class="d-flex gap-2 mt-3">
+        <a href="{{ url_for('reports.sales_register') }}" class="btn btn-sm btn-outline-primary flex-grow-1">View Report</a>
+        <a href="{{ url_for('reports.sales_register', export='csv') }}" class="btn btn-sm btn-light border" title="Export CSV"><i class="bi bi-download"></i></a>
+      </div>
+    </div>
+  </div>
+
+  <!-- GST Tax Summary -->
+  <div class="col-md-6 col-lg-4">
+    <div class="card-modern p-4 h-100 d-flex flex-column justify-content-between">
+      <div>
+        <div class="stat-icon-bg bg-info-subtle text-info mb-3">
+          <i class="bi bi-receipt-cutoff"></i>
+        </div>
+        <h5 class="fw-bold text-dark mb-1">GST Tax Summary</h5>
+        <p class="text-muted small">Intra-State vs Inter-State breakdown for GSTR-1 and GSTR-3B monthly filing reconciliations.</p>
+      </div>
+      <div class="d-flex gap-2 mt-3">
+        <a href="{{ url_for('reports.gst_summary') }}" class="btn btn-sm btn-outline-info flex-grow-1">View Report</a>
+        <a href="{{ url_for('reports.gst_summary', export='csv') }}" class="btn btn-sm btn-light border" title="Export CSV"><i class="bi bi-download"></i></a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Accounts Receivable Ageing -->
+  <div class="col-md-6 col-lg-4">
+    <div class="card-modern p-4 h-100 d-flex flex-column justify-content-between">
+      <div>
+        <div class="stat-icon-bg bg-danger-subtle text-danger mb-3">
+          <i class="bi bi-hourglass-split"></i>
+        </div>
+        <h5 class="fw-bold text-dark mb-1">Receivables Ageing</h5>
+        <p class="text-muted small">Customer outstanding balances segmented into 0-30, 31-60, 61-90, and 90+ days overdue buckets.</p>
+      </div>
+      <div class="d-flex gap-2 mt-3">
+        <a href="{{ url_for('reports.receivables_ageing') }}" class="btn btn-sm btn-outline-danger flex-grow-1">View Report</a>
+        <a href="{{ url_for('reports.receivables_ageing', export='csv') }}" class="btn btn-sm btn-light border" title="Export CSV"><i class="bi bi-download"></i></a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Purchase Register -->
+  <div class="col-md-6 col-lg-4">
+    <div class="card-modern p-4 h-100 d-flex flex-column justify-content-between">
+      <div>
+        <div class="stat-icon-bg bg-success-subtle text-success mb-3">
+          <i class="bi bi-bag-check"></i>
+        </div>
+        <h5 class="fw-bold text-dark mb-1">Purchase Procurement Register</h5>
+        <p class="text-muted small">Vendor invoices, material inward records, and total procurement spend across all suppliers.</p>
+      </div>
+      <div class="d-flex gap-2 mt-3">
+        <a href="{{ url_for('reports.purchase_register') }}" class="btn btn-sm btn-outline-success flex-grow-1">View Report</a>
+        <a href="{{ url_for('reports.purchase_register', export='csv') }}" class="btn btn-sm btn-light border" title="Export CSV"><i class="bi bi-download"></i></a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Production & Variances -->
+  <div class="col-md-6 col-lg-4">
+    <div class="card-modern p-4 h-100 d-flex flex-column justify-content-between">
+      <div>
+        <div class="stat-icon-bg bg-warning-subtle text-warning mb-3">
+          <i class="bi bi-graph-down-arrow"></i>
+        </div>
+        <h5 class="fw-bold text-dark mb-1">Production & Yield Variances</h5>
+        <p class="text-muted small">Planned vs actual manufacturing comparison, yield discrepancies, packaging scrap, and cost per packet.</p>
+      </div>
+      <div class="d-flex gap-2 mt-3">
+        <a href="{{ url_for('reports.production_variance') }}" class="btn btn-sm btn-outline-warning flex-grow-1">View Report</a>
+        <a href="{{ url_for('reports.production_variance', export='csv') }}" class="btn btn-sm btn-light border" title="Export CSV"><i class="bi bi-download"></i></a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Raw Material Stock Summary -->
+  <div class="col-md-6 col-lg-4">
+    <div class="card-modern p-4 h-100 d-flex flex-column justify-content-between">
+      <div>
+        <div class="stat-icon-bg bg-secondary-subtle text-secondary mb-3">
+          <i class="bi bi-boxes"></i>
+        </div>
+        <h5 class="fw-bold text-dark mb-1">Raw Material Stock Audit</h5>
+        <p class="text-muted small">Current physical inventory derived from ledger, minimum thresholds, and total valuation.</p>
+      </div>
+      <div class="d-flex gap-2 mt-3">
+        <a href="{{ url_for('reports.raw_material_stock') }}" class="btn btn-sm btn-outline-secondary flex-grow-1">View Report</a>
+        <a href="{{ url_for('reports.raw_material_stock', export='csv') }}" class="btn btn-sm btn-light border" title="Export CSV"><i class="bi bi-download"></i></a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Finished Goods Stock -->
+  <div class="col-md-6 col-lg-4">
+    <div class="card-modern p-4 h-100 d-flex flex-column justify-content-between">
+      <div>
+        <div class="stat-icon-bg bg-success-subtle text-success mb-3">
+          <i class="bi bi-box2-heart"></i>
+        </div>
+        <h5 class="fw-bold text-dark mb-1">Finished Goods Stock Report</h5>
+        <p class="text-muted small">Packaged snacks inventory, selling prices, and total inventory retail valuation.</p>
+      </div>
+      <div class="d-flex gap-2 mt-3">
+        <a href="{{ url_for('reports.finished_goods_stock') }}" class="btn btn-sm btn-outline-success flex-grow-1">View Report</a>
+        <a href="{{ url_for('reports.finished_goods_stock', export='csv') }}" class="btn btn-sm btn-light border" title="Export CSV"><i class="bi bi-download"></i></a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Immutable Audit Trail -->
+  <div class="col-md-6 col-lg-4">
+    <div class="card-modern p-4 h-100 d-flex flex-column justify-content-between">
+      <div>
+        <div class="stat-icon-bg bg-primary-subtle text-primary mb-3">
+          <i class="bi bi-shield-check"></i>
+        </div>
+        <h5 class="fw-bold text-dark mb-1">Full System Audit Log</h5>
+        <p class="text-muted small">Trace every user action, approval, cancellation, and transaction with timestamp and IP address.</p>
+      </div>
+      <div class="d-flex gap-2 mt-3">
+        <a href="{{ url_for('audit.index') }}" class="btn btn-sm btn-outline-primary flex-grow-1">View Audit Trail</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% block title %}Dispatch Management - SnackFlow{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 gap-2">
+  <div>
+    <h3 class="fw-bold text-dark mb-1">Dispatch & Outward Shipments</h3>
+    <p class="text-muted small mb-0">Record carrier dispatches, vehicle tracking, and deduct finished goods from stock ledger</p>
+  </div>
+</div>
+
+<!-- Orders Awaiting Dispatch Queue -->
+<div class="card-modern mb-4 overflow-hidden">
+  <div class="p-3 border-bottom d-flex align-items-center justify-content-between bg-light">
+    <div>
+      <h6 class="fw-bold text-dark mb-0"><i class="bi bi-clock-history me-1.5 text-primary"></i>Orders Ready for Dispatch</h6>
+      <small class="text-muted">Approved & Invoiced customer orders awaiting physical factory dispatch</small>
+    </div>
+    <span class="badge bg-primary">{{ pending_orders|length }} Ready</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-modern">
+      <thead>
+        <tr>
+          <th>Order #</th>
+          <th>Customer</th>
+          <th>Destination State</th>
+          <th>Status</th>
+          <th>Order Total</th>
+          <th class="text-end">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for o in pending_orders %}
+        <tr>
+          <td class="fw-bold font-monospace text-primary">{{ o.order_number }}</td>
+          <td>{{ o.customer.name }}</td>
+          <td>{{ o.customer.state }}</td>
+          <td><span class="badge-status badge-{{ o.status|lower }}">{{ o.status }}</span></td>
+          <td class="fw-bold text-dark">{{ o.total_amount|currency }}</td>
+          <td class="text-end">
+            <a href="{{ url_for('dispatch.create', order_id=o.id) }}" class="btn btn-sm btn-success fw-semibold py-0.5 px-2.5">
+              <i class="bi bi-truck me-1"></i>Dispatch Now &rarr;
+            </a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="6" class="text-center py-4 text-muted small">No orders currently waiting in dispatch queue.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Completed Dispatch Records -->
+<div class="card-modern overflow-hidden">
+  <div class="p-3 border-bottom d-flex align-items-center justify-content-between bg-light">
+    <h6 class="fw-bold text-dark mb-0"><i class="bi bi-truck me-1.5 text-success"></i>Dispatched Shipments History</h6>
+    <span class="badge bg-light text-muted border">{{ dispatches|length }} Total Dispatches</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-modern">
+      <thead>
+        <tr>
+          <th>Dispatch #</th>
+          <th>Date</th>
+          <th>Order Ref</th>
+          <th>Invoice Ref</th>
+          <th>Quantity Dispatched</th>
+          <th>Carrier / Vehicle</th>
+          <th>Status</th>
+          <th>Audited By</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in dispatches %}
+        <tr>
+          <td class="fw-bold font-monospace text-primary">{{ d.dispatch_number }}</td>
+          <td>{{ d.dispatch_date|date_format }}</td>
+          <td><a href="{{ url_for('sales.view', id=d.order_id) }}" class="fw-semibold text-dark text-decoration-none">{{ d.order.order_number }}</a></td>
+          <td>
+            {% if d.invoice %}
+              <a href="{{ url_for('invoices.view', id=d.invoice.id) }}" class="text-primary text-decoration-none font-monospace small">{{ d.invoice.invoice_number }}</a>
+            {% else %}
+              <span class="text-muted small">Direct Delivery</span>
+            {% endif %}
+          </td>
+          <td class="fw-bold fs-6 text-success">{{ d.total_quantity|format_qty('Packets') }}</td>
+          <td>
+            <div class="small fw-semibold text-dark">{{ d.carrier_name or 'Factory Transport' }}</div>
+            {% if d.vehicle_number %}<small class="font-monospace text-muted">{{ d.vehicle_number }}</small>{% endif %}
+          </td>
+          <td><span class="badge-status badge-dispatched">{{ d.status }}</span></td>
+          <td class="small text-muted">{{ d.created_by.full_name if d.created_by else 'Admin' }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8" class="text-center py-5 text-muted small">No dispatch records found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

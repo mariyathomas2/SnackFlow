@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% block title %}Receivables Ageing - SnackFlow{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 gap-2">
+  <div>
+    <h3 class="fw-bold text-dark mb-1">Accounts Receivable Ageing Analysis</h3>
+    <p class="text-muted small mb-0">Customer-wise credit balance classification across 30, 60, 90, and 90+ days overdue buckets</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('reports.receivables_ageing', export='csv') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-download me-1"></i>Export Ageing CSV</a>
+    <a href="{{ url_for('payments.create') }}" class="btn btn-primary-custom"><i class="bi bi-plus-lg me-1"></i>Record Payment</a>
+  </div>
+</div>
+
+<!-- Ageing Buckets Summary Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-xl-3 col-md-6">
+    <div class="card-stat">
+      <div class="stat-label">Total Outstanding</div>
+      <div class="stat-value text-danger">{{ total_receivables|currency }}</div>
+      <div class="stat-subtext">Sum across all customers</div>
+      <div class="stat-icon-bg bg-danger-subtle text-danger">
+        <i class="bi bi-exclamation-circle"></i>
+      </div>
+    </div>
+  </div>
+  <div class="col-xl-3 col-md-6">
+    <div class="card-stat">
+      <div class="stat-label">Current (0 - 30 Days)</div>
+      <div class="stat-value text-primary">{{ total_0_30|currency }}</div>
+      <div class="stat-subtext">Within standard payment terms</div>
+      <div class="stat-icon-bg bg-primary-subtle text-primary">
+        <i class="bi bi-check-circle"></i>
+      </div>
+    </div>
+  </div>
+  <div class="col-xl-3 col-md-6">
+    <div class="card-stat">
+      <div class="stat-label">31 - 60 Days Overdue</div>
+      <div class="stat-value text-warning">{{ total_31_60|currency }}</div>
+      <div class="stat-subtext">Follow-up reminder stage</div>
+      <div class="stat-icon-bg bg-warning-subtle text-warning">
+        <i class="bi bi-hourglass-split"></i>
+      </div>
+    </div>
+  </div>
+  <div class="col-xl-3 col-md-6">
+    <div class="card-stat">
+      <div class="stat-label">61+ Days Overdue</div>
+      <div class="stat-value text-danger">{{ (total_61_90 + total_90_plus)|currency }}</div>
+      <div class="stat-subtext">High credit risk stage</div>
+      <div class="stat-icon-bg bg-danger-subtle text-danger">
+        <i class="bi bi-slash-circle"></i>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card-modern overflow-hidden">
+  <div class="table-responsive">
+    <table class="table table-modern">
+      <thead>
+        <tr>
+          <th>Customer Name</th>
+          <th>State & Code</th>
+          <th>GSTIN</th>
+          <th>Open Invoices</th>
+          <th>Total Outstanding</th>
+          <th>0 - 30 Days</th>
+          <th>31 - 60 Days</th>
+          <th>61 - 90 Days</th>
+          <th>90+ Days</th>
+          <th class="text-end">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in summary %}
+        <tr>
+          <td>
+            <div class="fw-bold text-dark">{{ c.customer_name }}</div>
+            <small class="text-muted">{{ c.contact or '' }}</small>
+          </td>
+          <td>{{ c.state }}</td>
+          <td class="font-monospace small text-muted">{{ c.gstin }}</td>
+          <td><span class="badge bg-light text-dark border">{{ c.open_invoices_count }} Open</span></td>
+          <td class="fw-bold fs-6 text-danger">{{ c.total_outstanding|currency }}</td>
+          <td class="fw-semibold text-dark">{{ c.bucket_0_30|currency }}</td>
+          <td class="fw-semibold text-dark">{{ c.bucket_31_60|currency }}</td>
+          <td class="fw-semibold text-dark">{{ c.bucket_61_90|currency }}</td>
+          <td class="fw-semibold text-dark">{{ c.bucket_90_plus|currency }}</td>
+          <td class="text-end">
+            {% if c.total_outstanding > 0 %}
+            <a href="{{ url_for('payments.create') }}" class="btn btn-sm btn-outline-success py-0.5 px-2">
+              <i class="bi bi-cash me-1"></i>Collect
+            </a>
+            {% else %}
+            <span class="badge bg-success-subtle text-success">Clear</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="10" class="text-center py-5 text-muted small">No customer credit balances found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

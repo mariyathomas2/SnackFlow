@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% block title %}GST Tax Summary - SnackFlow{% endblock %}
+
+{% block content %}
+<div class="mb-4 d-flex flex-wrap align-items-center justify-content-between gap-2">
+  <div>
+    <a href="{{ url_for('reports.index') }}" class="btn btn-sm btn-link text-decoration-none p-0 text-muted">&larr; Back to Reports</a>
+    <h3 class="fw-bold text-dark mt-2 mb-1">GST Tax Filing Summary</h3>
+    <p class="text-muted small mb-0">Statutory tax liability report separated into Intra-State (CGST + SGST) and Inter-State (IGST) turnover</p>
+  </div>
+  <a href="{{ url_for('reports.gst_summary', export='csv') }}" class="btn btn-success fw-semibold">
+    <i class="bi bi-file-earmark-excel me-1"></i>Download GST Summary CSV
+  </a>
+</div>
+
+<!-- GST Table -->
+<div class="card-modern overflow-hidden mb-4">
+  <div class="p-3 border-bottom d-flex align-items-center justify-content-between bg-light">
+    <h6 class="fw-bold text-dark mb-0"><i class="bi bi-receipt-cutoff me-1.5 text-primary"></i>Turnover & Tax Breakdown by Place of Supply</h6>
+    <span class="badge bg-light text-muted border">Tamil Nadu Factory (33)</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-modern mb-0">
+      <thead>
+        <tr>
+          <th>Supply Category</th>
+          <th>Taxable Turnover</th>
+          <th>Central Tax (CGST)</th>
+          <th>State Tax (SGST)</th>
+          <th>Integrated Tax (IGST)</th>
+          <th class="text-end">Total GST Liability</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>
+            <div class="fw-bold text-dark">Intra-State Supply (Within Tamil Nadu)</div>
+            <small class="text-muted">Levied under CGST & Tamil Nadu SGST Act (2.5% + 2.5% = 5%)</small>
+          </td>
+          <td class="fw-bold fs-6 text-dark">{{ intra_taxable|currency }}</td>
+          <td class="fw-semibold text-primary">{{ intra_cgst|currency }}</td>
+          <td class="fw-semibold text-primary">{{ intra_sgst|currency }}</td>
+          <td class="text-muted">₹0.00</td>
+          <td class="text-end fw-bold text-success fs-6">{{ (intra_cgst + intra_sgst)|currency }}</td>
+        </tr>
+        <tr>
+          <td>
+            <div class="fw-bold text-dark">Inter-State Supply (Outside Tamil Nadu)</div>
+            <small class="text-muted">Levied under IGST Act (5.0%)</small>
+          </td>
+          <td class="fw-bold fs-6 text-dark">{{ inter_taxable|currency }}</td>
+          <td class="text-muted">₹0.00</td>
+          <td class="text-muted">₹0.00</td>
+          <td class="fw-semibold text-info">{{ inter_igst|currency }}</td>
+          <td class="text-end fw-bold text-success fs-6">{{ inter_igst|currency }}</td>
+        </tr>
+      </tbody>
+      <tfoot class="table-light">
+        <tr class="fs-6">
+          <td class="fw-bold text-dark">TOTAL STATUTORY TAX LIABILITY:</td>
+          <td class="fw-bold text-dark">{{ total_taxable|currency }}</td>
+          <td class="fw-bold text-primary">{{ intra_cgst|currency }}</td>
+          <td class="fw-bold text-primary">{{ intra_sgst|currency }}</td>
+          <td class="fw-bold text-info">{{ inter_igst|currency }}</td>
+          <td class="text-end fw-bold text-success fs-5">{{ total_gst|currency }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+
+<!-- Compliance Info Card -->
+<div class="card-modern p-4">
+  <h6 class="fw-bold text-dark mb-2"><i class="bi bi-shield-check text-success me-1.5"></i>GST Rule Engine Verification</h6>
+  <p class="small text-muted mb-2">
+    In strict adherence to Indian GST laws for manufacturers:
+  </p>
+  <ul class="small text-muted ps-3 mb-0" style="line-height: 1.6;">
+    <li><b>Origin Factory:</b> Registered in Tamil Nadu (State Code 33).</li>
+    <li><b>Benchmark Step 4 (Retailer A in Tamil Nadu):</b> Intra-state supply. Taxable = ₹7,500.00. CGST (2.5%) = ₹187.50, SGST (2.5%) = ₹187.50. Invoice Total = ₹7,875.00.</li>
+    <li><b>Benchmark Step 5 & 6 (Distributor B in Karnataka):</b> Inter-state supply. When invoiced, IGST at 5.0% applies without splitting into CGST/SGST.</li>
+    <li><b>HSN Classification:</b> <code>19059040</code> (Murukku, packaged savoury snacks) under 5% GST bracket.</li>
+  </ul>
+</div>
+{% endblock %}

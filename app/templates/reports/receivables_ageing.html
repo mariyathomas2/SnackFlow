@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block title %}Receivables Ageing Report - SnackFlow{% endblock %}
+
+{% block content %}
+<div class="mb-4 d-flex flex-wrap align-items-center justify-content-between gap-2">
+  <div>
+    <a href="{{ url_for('reports.index') }}" class="btn btn-sm btn-link text-decoration-none p-0 text-muted">&larr; Back to Reports</a>
+    <h3 class="fw-bold text-dark mt-2 mb-1">Accounts Receivable Ageing Report</h3>
+    <p class="text-muted small mb-0">Customer credit balances classified across 30, 60, 90, and 90+ days overdue buckets</p>
+  </div>
+  <a href="{{ url_for('reports.receivables_ageing', export='csv') }}" class="btn btn-success fw-semibold">
+    <i class="bi bi-file-earmark-excel me-1"></i>Download CSV
+  </a>
+</div>
+
+<div class="card-modern overflow-hidden">
+  <div class="table-responsive">
+    <table class="table table-modern">
+      <thead>
+        <tr>
+          <th>Customer Name</th>
+          <th>State & Code</th>
+          <th>GSTIN</th>
+          <th>Total Outstanding</th>
+          <th>0 - 30 Days (Current)</th>
+          <th>31 - 60 Days</th>
+          <th>61 - 90 Days</th>
+          <th>90+ Days</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in summary %}
+        <tr>
+          <td class="fw-bold text-dark">{{ c.customer_name }}</td>
+          <td>{{ c.state }}</td>
+          <td class="font-monospace small text-muted">{{ c.gstin }}</td>
+          <td class="fw-bold fs-6 text-danger">{{ c.total_outstanding|currency }}</td>
+          <td class="fw-semibold text-dark">{{ c.bucket_0_30|currency }}</td>
+          <td class="fw-semibold text-dark">{{ c.bucket_31_60|currency }}</td>
+          <td class="fw-semibold text-dark">{{ c.bucket_61_90|currency }}</td>
+          <td class="fw-semibold text-dark">{{ c.bucket_90_plus|currency }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot class="table-light">
+        <tr>
+          <td colspan="3" class="text-end fw-bold">Total Accounts Receivable:</td>
+          <td colspan="5" class="fw-bold fs-5 text-danger">{{ total_receivables|currency }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+{% endblock %}

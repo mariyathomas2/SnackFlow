@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% block title %}Finished Goods Inventory - SnackFlow{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 gap-2">
+  <div>
+    <h3 class="fw-bold text-dark mb-1">Finished Goods Stock</h3>
+    <p class="text-muted small mb-0">Packaged snacks ready for wholesale order allocation and customer dispatch</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('inventory.ledger', item_type='FINISHED_GOOD') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-journal-text me-1"></i>FG Ledger</a>
+    <a href="{{ url_for('production.create') }}" class="btn btn-sm btn-primary-custom"><i class="bi bi-play-circle-fill me-1"></i>New Production Run</a>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <div class="card-stat">
+      <div class="stat-label">Total Finished Goods Retail Valuation</div>
+      <div class="stat-value text-success">{{ total_retail_val|currency }}</div>
+      <div class="stat-subtext">Calculated from available stock × selling price</div>
+      <div class="stat-icon-bg bg-success-subtle text-success">
+        <i class="bi bi-box2-heart"></i>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card-stat">
+      <div class="stat-label">Stock Traceability Guarantee</div>
+      <div class="stat-value text-primary">100% Traceable</div>
+      <div class="stat-subtext">All balances derived from verified ledger rows</div>
+      <div class="stat-icon-bg bg-primary-subtle text-primary">
+        <i class="bi bi-shield-check"></i>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card-modern overflow-hidden">
+  <div class="table-responsive">
+    <table class="table table-modern">
+      <thead>
+        <tr>
+          <th>SKU</th>
+          <th>Product Name</th>
+          <th>Available Stock (Ledger)</th>
+          <th>Wholesale Unit Price</th>
+          <th>GST Tax Slab</th>
+          <th>Total Retail Valuation</th>
+          <th class="text-end">Ledger Audit</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for fg in summary %}
+        <tr>
+          <td class="font-monospace fw-bold text-primary">{{ fg.sku }}</td>
+          <td>
+            <div class="fw-semibold text-dark">{{ fg.name }}</div>
+          </td>
+          <td class="fw-bold fs-5 text-dark">{{ fg.current_stock|format_qty(fg.unit) }}</td>
+          <td>{{ fg.selling_price|currency }}</td>
+          <td><span class="badge bg-light text-dark border">{{ fg.gst_rate }}% GST</span></td>
+          <td class="fw-bold text-success">{{ fg.stock_value|currency }}</td>
+          <td class="text-end">
+            <a href="{{ url_for('inventory.ledger', search=fg.name) }}" class="btn btn-sm btn-outline-secondary py-0.5 px-2">
+              <i class="bi bi-journal-text me-1"></i>Trace Movements
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

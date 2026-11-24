@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% block title %}Raw Materials Inventory - SnackFlow{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 gap-2">
+  <div>
+    <h3 class="fw-bold text-dark mb-1">Raw Materials Stock Inventory</h3>
+    <p class="text-muted small mb-0">Live stock balances calculated directly from the immutable transaction ledger</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('inventory.ledger', item_type='RAW_MATERIAL') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-journal-text me-1"></i>View Raw Ledger</a>
+    <a href="{{ url_for('inventory.adjust') }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-sliders me-1"></i>Stock Adjustment</a>
+    <a href="{{ url_for('purchases.create') }}" class="btn btn-sm btn-primary-custom"><i class="bi bi-plus-lg me-1"></i>Purchase Receipt</a>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <div class="card-stat">
+      <div class="stat-label">Total Raw Material Inventory Valuation</div>
+      <div class="stat-value text-primary">{{ total_valuation|currency }}</div>
+      <div class="stat-subtext">Derived from ledger balance × unit cost</div>
+      <div class="stat-icon-bg bg-primary-subtle text-primary">
+        <i class="bi bi-currency-rupee"></i>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card-stat">
+      <div class="stat-label">Low Stock Safety Alerts</div>
+      <div class="stat-value {% if low_stock_count > 0 %}text-danger{% else %}text-success{% endif %}">{{ low_stock_count }}</div>
+      <div class="stat-subtext">Items at or below minimum threshold</div>
+      <div class="stat-icon-bg bg-danger-subtle text-danger">
+        <i class="bi bi-exclamation-triangle"></i>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card-modern overflow-hidden">
+  <div class="table-responsive">
+    <table class="table table-modern">
+      <thead>
+        <tr>
+          <th>Code</th>
+          <th>Raw Material</th>
+          <th>Available Stock (Ledger)</th>
+          <th>Reorder Threshold</th>
+          <th>Standard Unit Cost</th>
+          <th>Current Valuation</th>
+          <th>Status</th>
+          <th class="text-end">Ledger Audit</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rm in summary %}
+        <tr>
+          <td class="font-monospace fw-bold text-primary">{{ rm.code }}</td>
+          <td>
+            <div class="fw-semibold text-dark">{{ rm.name }}</div>
+          </td>
+          <td class="fw-bold fs-6 text-dark">{{ rm.current_stock|format_qty(rm.unit) }}</td>
+          <td>{{ rm.threshold|format_qty(rm.unit) }}</td>
+          <td>{{ rm.cost|currency }} / {{ rm.unit }}</td>
+          <td class="fw-semibold text-primary">{{ rm.stock_value|currency }}</td>
+          <td>
+            {% if rm.is_low_stock %}
+              <span class="badge bg-danger text-white"><i class="bi bi-exclamation-triangle-fill me-1"></i>Low Stock</span>
+            {% else %}
+              <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-check2 me-1"></i>Optimal</span>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            <a href="{{ url_for('inventory.ledger', search=rm.name) }}" class="btn btn-sm btn-outline-secondary py-0.5 px-2">
+              <i class="bi bi-journal-text me-1"></i>Ledger
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% block title %}Raw Materials Master - SnackFlow{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 gap-2">
+  <div>
+    <h3 class="fw-bold text-dark mb-1">Raw Materials Master</h3>
+    <p class="text-muted small mb-0">Ingredients, packaging consumables, unit definitions, standard purchase costs, and reorder safety thresholds</p>
+  </div>
+  {% if current_user.has_role(Role.FACTORY_ADMIN, Role.OWNER) %}
+  <button class="btn btn-primary-custom" data-bs-toggle="modal" data-bs-target="#newRawMaterialModal">
+    <i class="bi bi-plus-lg me-1"></i>Add Raw Material
+  </button>
+  {% endif %}
+</div>
+
+<div class="card-modern overflow-hidden">
+  <div class="table-responsive">
+    <table class="table table-modern">
+      <thead>
+        <tr>
+          <th>Code</th>
+          <th>Raw Material Name</th>
+          <th>Unit of Measure</th>
+          <th>Standard Unit Cost</th>
+          <th>Low-Stock Safety Threshold</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rm in materials %}
+        <tr>
+          <td class="font-monospace fw-bold text-primary">{{ rm.code }}</td>
+          <td class="fw-semibold text-dark">{{ rm.name }}</td>
+          <td><span class="badge bg-light text-dark border">{{ rm.unit }}</span></td>
+          <td class="fw-bold text-dark">{{ rm.cost|currency }} / {{ rm.unit }}</td>
+          <td>
+            <span class="fw-semibold">{{ rm.stock_threshold|format_qty(rm.unit) }}</span>
+            <small class="text-muted d-block" style="font-size: 0.72rem;">Alert trigger level</small>
+          </td>
+          <td>
+            <span class="badge {% if rm.status == 'Active' %}bg-success-subtle text-success border border-success-subtle{% else %}bg-secondary{% endif %}">
+              {{ rm.status }}
+            </span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- New Raw Material Modal -->
+<div class="modal fade" id="newRawMaterialModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('master.raw_materials') }}">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold">Add Raw Material</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Material Name</label>
+            <input type="text" name="name" class="form-control" placeholder="e.g. Flour (Rice / Urad Dal)" required>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Material Code</label>
+              <input type="text" name="code" class="form-control text-uppercase" placeholder="e.g. RM-FLOUR" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Unit of Measure</label>
+              <select name="unit" class="form-select">
+                <option value="kg">kg (Kilograms)</option>
+                <option value="litre">litre (Litres)</option>
+                <option value="pcs">pcs (Pieces)</option>
+                <option value="cartons">cartons</option>
+              </select>
+            </div>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Standard Cost (₹)</label>
+              <input type="number" step="0.01" name="cost" class="form-control" placeholder="45.00" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Stock Threshold Alert</label>
+              <input type="number" step="0.01" name="stock_threshold" class="form-control" placeholder="10.00" required>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-sm btn-primary">Save Material</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

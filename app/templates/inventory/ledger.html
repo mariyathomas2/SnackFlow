@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+{% block title %}Stock Ledger - SnackFlow{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 gap-2">
+  <div>
+    <h3 class="fw-bold text-dark mb-1">Immutable Stock Ledger</h3>
+    <p class="text-muted small mb-0">Every inventory movement is cryptographically traceable, linked to source transactions, and prevents negative balances</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('inventory.adjust') }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-sliders me-1"></i>Stock Adjustment</a>
+    <a href="{{ url_for('reports.stock_ledger', export='csv') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-download me-1"></i>Export Ledger CSV</a>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="card-modern p-3 mb-4">
+  <form method="GET" action="{{ url_for('inventory.ledger') }}" class="row g-2 align-items-end">
+    <div class="col-md-3">
+      <label class="form-label small fw-semibold text-muted">Item Category</label>
+      <select name="item_type" class="form-select form-select-sm">
+        <option value="">All Categories</option>
+        <option value="RAW_MATERIAL" {% if current_item_type == 'RAW_MATERIAL' %}selected{% endif %}>Raw Materials</option>
+        <option value="FINISHED_GOOD" {% if current_item_type == 'FINISHED_GOOD' %}selected{% endif %}>Finished Goods</option>
+      </select>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label small fw-semibold text-muted">Transaction Type</label>
+      <select name="transaction_type" class="form-select form-select-sm">
+        <option value="">All Transaction Types</option>
+        {% for tt in transaction_types %}
+        <option value="{{ tt }}" {% if current_tx_type == tt %}selected{% endif %}>{{ tt }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small fw-semibold text-muted">Search Item / Reference</label>
+      <input type="text" name="search" class="form-control form-control-sm" placeholder="e.g. Flour, PR-2026, DSP-001" value="{{ search }}">
+    </div>
+    <div class="col-md-2 d-flex gap-1">
+      <button type="submit" class="btn btn-sm btn-primary w-100">Filter</button>
+      <a href="{{ url_for('inventory.ledger') }}" class="btn btn-sm btn-light border">Reset</a>
+    </div>
+  </form>
+</div>
+
+<!-- Ledger Table -->
+<div class="card-modern overflow-hidden">
+  <div class="table-responsive">
+    <table class="table table-modern">
+      <thead>
+        <tr>
+          <th>Tx ID</th>
+          <th>Timestamp</th>
+          <th>Item Name</th>
+          <th>Transaction Type</th>
+          <th class="text-end">Qty In (+)</th>
+          <th class="text-end">Qty Out (-)</th>
+          <th class="text-end">Balance After</th>
+          <th>Unit Cost</th>
+          <th>Source Reference</th>
+          <th>Notes / Reason</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in entries %}
+        <tr>
+          <td class="font-monospace text-muted small">#{{ row.id }}</td>
+          <td class="small">{{ row.transaction_date.strftime('%d-%b-%Y %H:%M') }}</td>
+          <td>
+            <div class="fw-semibold text-dark">{{ row.item_name }}</div>
+            <span class="badge bg-light text-muted border" style="font-size: 0.68rem;">{{ row.item_type }}</span>
+          </td>
+          <td>
+            {% if 'RECEIPT' in row.transaction_type or 'OUTPUT' in row.transaction_type or 'OPENING' in row.transaction_type %}
+              <span class="badge bg-success-subtle text-success border border-success-subtle">{{ row.transaction_type }}</span>
+            {% elif 'ISSUE' in row.transaction_type or 'DISPATCH' in row.transaction_type %}
+              <span class="badge bg-primary-subtle text-primary border border-primary-subtle">{{ row.transaction_type }}</span>
+            {% elif 'WASTAGE' in row.transaction_type %}
+              <span class="badge bg-danger-subtle text-danger border border-danger-subtle">{{ row.transaction_type }}</span>
+            {% else %}
+              <span class="badge bg-secondary-subtle text-secondary">{{ row.transaction_type }}</span>
+            {% endif %}
+          </td>
+          <td class="text-end fw-semibold text-success">
+            {% if row.quantity_in > 0 %}+{{ row.quantity_in|format_qty(row.unit) }}{% else %}-{% endif %}
+          </td>
+          <td class="text-end fw-semibold text-danger">
+            {% if row.quantity_out > 0 %}-{{ row.quantity_out|format_qty(row.unit) }}{% else %}-{% endif %}
+          </td>
+          <td class="text-end fw-bold text-dark fs-6 bg-light">
+            {{ row.balance_after|format_qty(row.unit) }}
+          </td>
+          <td class="small">{{ row.unit_cost|currency }}</td>
+          <td class="font-monospace small">
+            <span class="badge bg-white text-dark border">{{ row.reference_type }}: {{ row.reference_id or 'N/A' }}</span>
+          </td>
+          <td class="small text-muted" style="max-width: 220px;">{{ row.notes or '-' }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="10" class="text-center py-5 text-muted small">No transactions found matching your criteria.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
